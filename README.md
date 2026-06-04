@@ -459,12 +459,6 @@ npm run tauri build
 
 ---
 
-## 👨‍💻 作者
-
-**Evan Lau** - [evanspace.icu](https://evanspace.icu)
-
----
-
 <p align="center">
   <sub>Light 代表轻量、轻快，寓意让您的C盘变得轻盈；C 即C盘，Windows系统的核心磁盘。</sub>
 </p>
