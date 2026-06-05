@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LightC 卡密管理后台</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f6f8;
+      color: #1f2329;
+      font-size: 13px;
+    }
+    header {
+      background: #07c160;
+      color: white;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    header h1 { margin: 0; font-size: 16px; }
+    nav { display: flex; gap: 18px; }
+    nav a {
+      color: white;
+      text-decoration: none;
+      opacity: 0.85;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    nav a.active, nav a:hover { background: rgba(255,255,255,0.18); opacity: 1; }
+    .container { padding: 18px 24px; }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .stat {
+      padding: 12px 14px;
+      background: #fafbfc;
+      border-radius: 6px;
+      border-left: 3px solid #07c160;
+    }
+    .stat .label { color: #707479; font-size: 12px; }
+    .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; color: #1f2329; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #ecedef; font-size: 12px; }
+    th { background: #fafbfc; font-weight: 600; color: #5a5f66; }
+    tr:hover td { background: #fafbfc; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .badge.unused { background: #e8f4fd; color: #1976d2; }
+    .badge.active { background: #e8f8ed; color: #07c160; }
+    .badge.expired { background: #fff4e5; color: #ed7c2f; }
+    .badge.disabled { background: #fce8e8; color: #d32f2f; }
+    .btn {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      background: #07c160;
+      color: white;
+    }
+    .btn:hover { background: #06ad57; }
+    .btn.secondary { background: #f0f1f3; color: #5a5f66; }
+    .btn.secondary:hover { background: #e6e7ea; }
+    .btn.danger { background: #fce8e8; color: #d32f2f; }
+    .btn.danger:hover { background: #d32f2f; color: white; }
+    input, select {
+      padding: 6px 10px;
+      border: 1px solid #dcddde;
+      border-radius: 4px;
+      font-size: 12px;
+      background: white;
+    }
+    input:focus, select:focus { outline: none; border-color: #07c160; }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 8px;
+      width: 600px;
+      max-width: 92vw;
+      max-height: 88vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid #ecedef;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-body { padding: 16px 18px; overflow: auto; flex: 1; }
+    .form-row { margin-bottom: 12px; }
+    .form-row label { display: block; font-size: 12px; color: #5a5f66; margin-bottom: 4px; }
+    .form-row input, .form-row select, .form-row textarea {
+      width: 100%;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace; font-size: 11px; }
+    .empty { text-align: center; padding: 40px; color: #999; }
+    .pagination { display: flex; gap: 6px; justify-content: center; margin-top: 12px; align-items: center; }
+    .pagination button { padding: 4px 10px; border: 1px solid #dcddde; background: white; border-radius: 4px; cursor: pointer; }
+    .pagination button.active { background: #07c160; color: white; border-color: #07c160; }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .gen-result { background: #f5f6f8; padding: 10px; border-radius: 4px; max-height: 240px; overflow: auto; }
+    .gen-result .mono { display: block; padding: 2px 0; }
+    details summary { cursor: pointer; padding: 6px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛡️ LightC 卡密管理后台</h1>
+    <nav>
+      <a class="active" data-tab="dashboard">总览</a>
+      <a data-tab="cards">卡密管理</a>
+      <a data-tab="activations">激活日志</a>
+      <a data-tab="generate">批量生成</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <!-- 总览 -->
+    <section id="tab-dashboard">
+      <div class="card">
+        <h3 style="margin-top:0">总览</h3>
+        <div class="stats-grid" id="stats-grid"><div class="empty">加载中…</div></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">按卡密类型</h3>
+        <div id="tier-stats"></div>
+      </div>
+    </section>
+
+    <!-- 卡密管理 -->
+    <section id="tab-cards" style="display:none">
+      <div class="card">
+        <div class="toolbar">
+          <select id="filter-status">
+            <option value="">全部状态</option>
+            <option value="unused">未使用</option>
+            <option value="active">已激活</option>
+            <option value="expired">已过期</option>
+            <option value="disabled">已封禁</option>
+          </select>
+          <select id="filter-tier">
+            <option value="">全部类型</option>
+            <option value="day">日卡</option>
+            <option value="week">周卡</option>
+            <option value="half_month">半月卡</option>
+            <option value="quarter">季卡</option>
+            <option value="half_year">半年卡</option>
+            <option value="year">年卡</option>
+          </select>
+          <input id="filter-batch" placeholder="批次" style="width:140px" />
+          <input id="filter-keyword" placeholder="卡密 / 指纹关键字" style="width:220px" />
+          <button class="btn secondary" onclick="loadCards()">查询</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>卡密</th>
+              <th>类型</th>
+              <th>状态</th>
+              <th>批次</th>
+              <th>激活时间</th>
+              <th>到期时间</th>
+              <th>绑定指纹</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="cards-tbody"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody>
+        </table>
+        <div class="pagination" id="cards-pagination"></div>
+      </div>
+    </section>
+
+    <!-- 激活日志 -->
+    <section id="tab-activations" style="display:none">
+      <div class="card">
+        <div class="toolbar">
+          <input id="act-card" placeholder="卡密筛选" style="width:240px" />
+          <select id="act-result">
+            <option value="">全部结果</option>
+            <option value="success">激活成功</option>
+            <option value="reactivate">重复激活</option>
+            <option value="already_bound">已绑其他设备</option>
+            <option value="invalid">卡密不存在</option>
+            <option value="disabled">已封禁</option>
+            <option value="expired">已过期</option>
+          </select>
+          <button class="btn secondary" onclick="loadActivations()">查询</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>时间</th><th>卡密</th><th>指纹</th><th>结果</th><th>IP</th><th>UA</th></tr>
+          </thead>
+          <tbody id="acts-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 批量生成 -->
+    <section id="tab-generate" style="display:none">
+      <div class="card">
+        <h3 style="margin-top:0">批量生成卡密</h3>
+        <div style="display:flex; gap:14px; flex-wrap:wrap">
+          <div>
+            <label>卡密类型</label><br/>
+            <select id="gen-tier">
+              <option value="day">体验卡（1 天）</option>
+              <option value="week">周卡（7 天）</option>
+              <option value="half_month">半月卡（15 天）</option>
+              <option value="quarter">季卡（90 天）</option>
+              <option value="half_year">半年卡（180 天）</option>
+              <option value="year" selected>年卡（365 天）</option>
+            </select>
+          </div>
+          <div>
+            <label>数量</label><br/>
+            <input id="gen-count" type="number" value="10" min="1" max="50000" />
+          </div>
+          <div>
+            <label>批次名（可选）</label><br/>
+            <input id="gen-batch" placeholder="例：618促销" />
+          </div>
+          <div>
+            <label>必须激活前（可选 yyyy-mm-dd）</label><br/>
+            <input id="gen-valid-until" type="date" />
+          </div>
+          <div>
+            <label>备注（可选）</label><br/>
+            <input id="gen-note" />
+          </div>
+          <div style="display:flex; align-items:end">
+            <button class="btn" onclick="doGenerate()">生成</button>
+          </div>
+        </div>
+        <div id="gen-result" style="margin-top:14px"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 卡密详情 Modal -->
+  <div class="modal-backdrop" id="card-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span id="card-modal-title">卡密详情</span>
+        <button class="btn secondary" onclick="closeCardModal()">关闭</button>
+      </div>
+      <div class="modal-body" id="card-modal-body"></div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // 状态
+    // ============================================================================
+    const State = { page: 1, pageSize: 50 };
+
+    // ============================================================================
+    // Tab 切换
+    // ============================================================================
+    document.querySelectorAll('nav a').forEach(a => {
+      a.addEventListener('click', () => {
+        document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+        a.classList.add('active');
+        const tab = a.dataset.tab;
+        document.querySelectorAll('section').forEach(s => s.style.display = 'none');
+        document.getElementById('tab-' + tab).style.display = '';
+        if (tab === 'dashboard') loadStats();
+        if (tab === 'cards') loadCards();
+        if (tab === 'activations') loadActivations();
+      });
+    });
+
+    // ============================================================================
+    // 工具
+    // ============================================================================
+    async function api(path, opts = {}) {
+      const resp = await fetch('/admin/api' + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        body: opts.body && typeof opts.body !== 'string' ? JSON.stringify(opts.body) : opts.body,
+      });
+      if (resp.status === 401) {
+        location.reload();
+        return;
+      }
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.json();
+    }
+    function fmt(ts) {
+      if (!ts) return '-';
+      return new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false });
+    }
+    function escapeHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function tierLabel(t) {
+      return ({ day:'日卡', week:'周卡', half_month:'半月', quarter:'季卡', half_year:'半年', year:'年卡' })[t] || t;
+    }
+    function fmtCard(c) {
+      if (!c) return '';
+      const clean = String(c).replace(/-/g, '');
+      if (clean.length !== 22 || !clean.startsWith('LC')) return c;
+      return 'LC-' + clean.slice(2).match(/.{1,4}/g).join('-');
+    }
+
+    // ============================================================================
+    // 总览
+    // ============================================================================
+    async function loadStats() {
+      const s = await api('/stats');
+      const items = [
+        { label: '卡密总数', value: s.total },
+        { label: '未使用', value: s.by_status.unused || 0 },
+        { label: '已激活', value: s.by_status.active || 0 },
+        { label: '已过期', value: s.by_status.expired || 0 },
+        { label: '已封禁', value: s.by_status.disabled || 0 },
+        { label: '本月新增激活', value: s.month_activated },
+        { label: '即将过期 (7天内)', value: s.expiring_soon_7d },
+      ];
+      document.getElementById('stats-grid').innerHTML = items.map(i => `
+        <div class="stat">
+          <div class="label">${i.label}</div>
+          <div class="value">${i.value}</div>
+        </div>
+      `).join('');
+      const tierRows = Object.entries(s.by_tier).map(([t, c]) =>
+        `<tr><td>${tierLabel(t)}</td><td>${c}</td></tr>`
+      ).join('');
+      document.getElementById('tier-stats').innerHTML =
+        `<table><thead><tr><th>类型</th><th>数量</th></tr></thead><tbody>${tierRows || '<tr><td colspan="2" class="empty">暂无数据</td></tr>'}</tbody></table>`;
+    }
+
+    // ============================================================================
+    // 卡密列表
+    // ============================================================================
+    async function loadCards() {
+      const qs = new URLSearchParams({
+        status: document.getElementById('filter-status').value,
+        tier: document.getElementById('filter-tier').value,
+        batch: document.getElementById('filter-batch').value,
+        keyword: document.getElementById('filter-keyword').value,
+        page: State.page,
+        page_size: State.pageSize,
+      });
+      const { total, items } = await api('/cards?' + qs);
+      const tbody = document.getElementById('cards-tbody');
+      if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="empty">暂无数据</td></tr>`;
+      } else {
+        tbody.innerHTML = items.map(c => `
+          <tr>
+            <td class="mono">${fmtCard(c.card)}</td>
+            <td>${tierLabel(c.tier)}</td>
+            <td><span class="badge ${c.status}">${c.status}</span></td>
+            <td>${escapeHtml(c.batch || '-')}</td>
+            <td>${fmt(c.activated_at)}</td>
+            <td>${fmt(c.expires_at)}</td>
+            <td class="mono">${c.fingerprint ? c.fingerprint.slice(0, 8) + '…' : '-'}</td>
+            <td>
+              <button class="btn secondary" onclick="showCardDetail('${c.card}')">详情</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+      // 分页
+      const totalPages = Math.max(1, Math.ceil(total / State.pageSize));
+      let pag = '';
+      pag += `<button onclick="State.page=Math.max(1,State.page-1);loadCards()" ${State.page<=1?'disabled':''}>上一页</button>`;
+      pag += `<span>第 ${State.page} / ${totalPages} 页（共 ${total} 条）</span>`;
+      pag += `<button onclick="State.page=Math.min(${totalPages},State.page+1);loadCards()" ${State.page>=totalPages?'disabled':''}>下一页</button>`;
+      document.getElementById('cards-pagination').innerHTML = pag;
+    }
+
+    async function showCardDetail(card) {
+      const data = await api('/cards/' + card);
+      const c = data.card;
+      const acts = data.activations.map(a => `
+        <tr>
+          <td>${fmt(a.created_at)}</td>
+          <td><span class="badge ${a.result === 'success' ? 'active' : a.result === 'already_bound' ? 'disabled' : 'expired'}">${a.result}</span></td>
+          <td class="mono">${a.fingerprint.slice(0, 8)}…</td>
+          <td>${escapeHtml(a.ip || '-')}</td>
+        </tr>
+      `).join('');
+      document.getElementById('card-modal-title').textContent = fmtCard(c.card);
+      document.getElementById('card-modal-body').innerHTML = `
+        <div class="form-row"><label>状态</label><div><span class="badge ${c.status}">${c.status}</span> · ${tierLabel(c.tier)} · ${c.duration_days} 天</div></div>
+        <div class="form-row"><label>批次 / 备注</label><div>${escapeHtml(c.batch || '-')} ${c.note ? '· ' + escapeHtml(c.note) : ''}</div></div>
+        <div class="form-row"><label>激活时间</label><div>${fmt(c.activated_at)}</div></div>
+        <div class="form-row"><label>到期时间</label><div>${fmt(c.expires_at)}</div></div>
+        <div class="form-row"><label>绑定指纹</label><div class="mono">${c.fingerprint || '-'}</div></div>
+        ${c.disabled_reason ? `<div class="form-row"><label>封禁原因</label><div>${escapeHtml(c.disabled_reason)}</div></div>` : ''}
+
+        <div class="form-row" style="margin-top:18px">
+          <label>操作</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            ${c.status === 'active' ? `<button class="btn" onclick="cardOp('${c.card}','unbind')">强制解绑</button>` : ''}
+            ${c.status !== 'disabled' ? `<button class="btn danger" onclick="cardOp('${c.card}','disable')">封禁</button>` : `<button class="btn secondary" onclick="cardOp('${c.card}','enable')">解禁</button>`}
+            <button class="btn secondary" onclick="cardOp('${c.card}','reset')">重置（清空所有绑定）</button>
+          </div>
+        </div>
+
+        <details>
+          <summary>激活记录（${data.activations.length}）</summary>
+          <table><thead><tr><th>时间</th><th>结果</th><th>指纹</th><th>IP</th></tr></thead><tbody>${acts || '<tr><td colspan="4" class="empty">暂无</td></tr>'}</tbody></table>
+        </details>
+      `;
+      document.getElementById('card-modal').classList.add('show');
+    }
+    function closeCardModal() {
+      document.getElementById('card-modal').classList.remove('show');
+    }
+    async function cardOp(card, op) {
+      if (op === 'disable' && !confirm('确定封禁该卡密？')) return;
+      if (op === 'reset' && !confirm('确定重置该卡密？将清空所有激活记录并回到未使用状态')) return;
+      const reason = (op === 'disable' || op === 'unbind') ? prompt('原因（可留空）') : null;
+      await api(`/cards/${card}/${op}`, { method: 'POST', body: { reason: reason || undefined } });
+      closeCardModal();
+      loadCards();
+    }
+
+    // ============================================================================
+    // 激活日志
+    // ============================================================================
+    async function loadActivations() {
+      const qs = new URLSearchParams({
+        card: document.getElementById('act-card').value,
+        result: document.getElementById('act-result').value,
+        limit: 200,
+      });
+      const { items } = await api('/activations?' + qs);
+      const tbody = document.getElementById('acts-tbody');
+      if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">暂无</td></tr>`;
+      } else {
+        tbody.innerHTML = items.map(a => `
+          <tr>
+            <td>${fmt(a.created_at)}</td>
+            <td class="mono">${fmtCard(a.card)}</td>
+            <td class="mono">${a.fingerprint.slice(0, 8)}…</td>
+            <td><span class="badge ${a.result === 'success' ? 'active' : 'disabled'}">${a.result}</span></td>
+            <td>${escapeHtml(a.ip || '-')}</td>
+            <td class="mono" title="${escapeHtml(a.user_agent || '')}">${escapeHtml((a.user_agent || '').slice(0, 30))}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    // ============================================================================
+    // 生成
+    // ============================================================================
+    async function doGenerate() {
+      const tier = document.getElementById('gen-tier').value;
+      const count = Number(document.getElementById('gen-count').value);
+      const batch = document.getElementById('gen-batch').value;
+      const note = document.getElementById('gen-note').value;
+      const validUntilStr = document.getElementById('gen-valid-until').value;
+      const valid_until = validUntilStr ? Math.floor(new Date(validUntilStr + 'T23:59:59').getTime()) : null;
+
+      if (!count || count < 1) return alert('请输入数量');
+      if (count > 5000 && !confirm(`确定要生成 ${count} 张卡密吗？`)) return;
+
+      const data = await api('/generate', { method: 'POST', body: { tier, count, batch, note, valid_until } });
+
+      const lines = data.cards.map(c => fmtCard(c)).join('\n');
+      const blob = new Blob([`card,tier,batch\n${data.cards.map(c => `${fmtCard(c)},${tier},${batch || ''}`).join('\n')}`], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const filename = `cards_${tier}_${new Date().toISOString().slice(0, 10)}.csv`;
+
+      document.getElementById('gen-result').innerHTML = `
+        <div style="margin-bottom:10px">
+          <strong>✅ 已生成 ${data.count} 张</strong>
+          &nbsp;&nbsp;<a href="${url}" download="${filename}" class="btn">下载 CSV</a>
+        </div>
+        <div class="gen-result">
+          ${data.cards.map(c => `<span class="mono">${fmtCard(c)}</span>`).join('')}
+        </div>
+      `;
+    }
+
+    // 初始加载
+    loadStats();
+  </script>
+</body>
+</html>
