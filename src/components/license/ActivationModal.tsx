@@ -1,5 +1,5 @@
 // ============================================================================
-// 卡密激活弹窗
+// 卡密激活弹窗（升级版：价格卡片 + 突出场景 + 成功动画）
 //
 // 由 LicenseContext 的 prompt 状态触发；
 // 用户输入卡密 → 实时格式校验 → 调 activate_license → 服务器签发 token →
@@ -17,13 +17,15 @@ import {
   Sparkles,
   Loader2,
   AlertCircle,
+  Zap,
+  TrendingUp,
 } from 'lucide-react';
 import { useLicense } from '../../contexts/LicenseContext';
 import {
   activateLicense,
   getMachineFingerprint,
-  TIER_LABEL,
   verifyCardFormat,
+  type LicenseTier,
 } from '../../api/commands';
 import { useToast } from '../Toast';
 
@@ -31,7 +33,6 @@ import { useToast } from '../Toast';
 function formatCard(input: string): string {
   const clean = input.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   if (!clean) return '';
-  // 首两位强制为 LC
   let body = clean;
   if (body.startsWith('LC')) body = body.slice(2);
   const segs: string[] = ['LC'];
@@ -41,14 +42,26 @@ function formatCard(input: string): string {
   return segs.filter(Boolean).join('-');
 }
 
-const TIER_PRICE_HINTS: { label: string; tip: string }[] = [
-  { label: TIER_LABEL.day, tip: '快速体验所有清理功能' },
-  { label: TIER_LABEL.week, tip: '短期使用首选' },
-  { label: TIER_LABEL.half_month, tip: '深度清理一次系统' },
-  { label: TIER_LABEL.quarter, tip: '季度大扫除' },
-  { label: TIER_LABEL.half_year, tip: '半年无忧使用' },
-  { label: TIER_LABEL.year, tip: '推荐 · 最划算' },
+// 卡密类型展示元数据
+interface TierMeta {
+  tier: LicenseTier;
+  label: string;
+  duration: string;
+  badge?: string;        // 角标文案（"推荐"/"超值"等）
+  highlight?: boolean;   // 是否突出
+  gradient: string;      // 渐变背景
+}
+
+const TIER_CARDS: TierMeta[] = [
+  { tier: 'day', label: '体验卡', duration: '1 天', gradient: 'from-slate-50 to-slate-100' },
+  { tier: 'week', label: '周卡', duration: '7 天', gradient: 'from-blue-50 to-blue-100' },
+  { tier: 'half_month', label: '半月卡', duration: '15 天', gradient: 'from-sky-50 to-sky-100' },
+  { tier: 'quarter', label: '季卡', duration: '90 天', gradient: 'from-teal-50 to-teal-100', badge: '热门' },
+  { tier: 'half_year', label: '半年卡', duration: '180 天', gradient: 'from-emerald-50 to-emerald-100', badge: '超值' },
+  { tier: 'year', label: '年卡', duration: '365 天', gradient: 'from-amber-50 to-orange-100', badge: '推荐', highlight: true },
 ];
+
+type ModalStage = 'input' | 'submitting' | 'success';
 
 export function ActivationModal() {
   const { prompt, closePrompt, onActivationSuccess } = useLicense();
@@ -59,9 +72,10 @@ export function ActivationModal() {
   const [card, setCard] = useState('');
   const [fingerprint, setFingerprint] = useState('');
   const [fpCopied, setFpCopied] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [stage, setStage] = useState<ModalStage>('input');
   const [formatValid, setFormatValid] = useState<boolean | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [activatedTier, setActivatedTier] = useState<string>('');
   const [isVisible, setIsVisible] = useState(false);
   const enteredRef = useRef(false);
   if (isVisible) enteredRef.current = true;
@@ -73,6 +87,8 @@ export function ActivationModal() {
       setErrorMsg('');
       setCard('');
       setFormatValid(null);
+      setStage('input');
+      setActivatedTier('');
     } else {
       setIsVisible(false);
     }
@@ -128,21 +144,25 @@ export function ActivationModal() {
       setErrorMsg('卡密格式不正确，请仔细核对');
       return;
     }
-    setSubmitting(true);
+    setStage('submitting');
     setErrorMsg('');
     try {
-      await activateLicense(normalized);
-      showToast({
-        type: 'success',
-        title: '激活成功',
-        description: '会员功能已解锁',
-      });
-      await onActivationSuccess();
+      const res = await activateLicense(normalized);
+      // 取出激活的 tier 用于成功页展示
+      const s = res.status;
+      if (s.status === 'premium') {
+        const meta = TIER_CARDS.find((t) => t.tier === s.tier);
+        setActivatedTier(meta?.label || '会员');
+      }
+      setStage('success');
+      // 1.2 秒后真正完成
+      setTimeout(async () => {
+        await onActivationSuccess();
+      }, 1200);
     } catch (e) {
       const msg = typeof e === 'string' ? e : e instanceof Error ? e.message : String(e);
       setErrorMsg(msg || '激活失败，请稍后重试');
-    } finally {
-      setSubmitting(false);
+      setStage('input');
     }
   };
 
@@ -152,6 +172,43 @@ export function ActivationModal() {
     if (formatValid === true) return 'border-[var(--brand-green)]';
     return 'border-[var(--border-color)]';
   })();
+
+  // ============================================================
+  // 成功页
+  // ============================================================
+  if (stage === 'success') {
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+        <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${isVisible ? 'modal-overlay-in' : 'modal-overlay-out'}`} />
+        <div className={`relative w-[420px] bg-[var(--bg-card)] rounded-2xl shadow-2xl overflow-hidden ${isVisible ? 'modal-content-in' : 'modal-content-out'}`}>
+          <div className="px-8 py-10 flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-[var(--brand-green)] opacity-20 animate-ping" />
+              <div className="relative w-20 h-20 rounded-full bg-[var(--brand-green)] flex items-center justify-center text-white shadow-lg">
+                <CheckCircle className="w-10 h-10" strokeWidth={2.5} />
+              </div>
+            </div>
+            <div className="text-center mt-2">
+              <h3 className="text-[18px] font-bold text-[var(--text-primary)]">激活成功</h3>
+              <p className="text-[13px] text-[var(--text-secondary)] mt-1">
+                {activatedTier} 已生效，所有清理功能已解锁
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--brand-green)]/10 text-[var(--brand-green)] text-[12px] font-medium">
+              <Sparkles className="w-3.5 h-3.5" />
+              即将自动继续操作
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
+
+  // ============================================================
+  // 输入页
+  // ============================================================
+  const submitting = stage === 'submitting';
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
@@ -165,7 +222,7 @@ export function ActivationModal() {
 
       {/* 弹窗 */}
       <div
-        className={`relative w-[480px] max-h-[88vh] bg-[var(--bg-card)] rounded-2xl shadow-2xl overflow-hidden flex flex-col ${
+        className={`relative w-[540px] max-h-[88vh] bg-[var(--bg-card)] rounded-2xl shadow-2xl overflow-hidden flex flex-col ${
           isVisible ? 'modal-content-in' : 'modal-content-out'
         }`}
       >
@@ -192,20 +249,65 @@ export function ActivationModal() {
             </div>
           </div>
 
+          {/* 突出场景：A5 —— 释放量大字突出展示 */}
           {prompt?.hint && (
-            <div className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--brand-green)]/10 text-[12px] text-[var(--brand-green)]">
-              <Sparkles className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>{prompt.hint}</span>
+            <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-[var(--brand-green)]/15 via-[var(--brand-green)]/8 to-transparent border border-[var(--brand-green)]/20">
+              <div className="w-9 h-9 rounded-lg bg-[var(--brand-green)] flex items-center justify-center text-white shrink-0">
+                <Zap className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] text-[var(--text-muted)] leading-tight">
+                  本次操作
+                </div>
+                <div className="text-[14px] font-bold text-[var(--brand-green)] mt-0.5 leading-tight">
+                  {prompt.hint}
+                </div>
+              </div>
+              <TrendingUp className="w-4 h-4 text-[var(--brand-green)] shrink-0" />
             </div>
           )}
         </div>
 
         {/* 主体 */}
         <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
+          {/* A1: 价格卡片网格 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[12px] font-semibold text-[var(--text-secondary)]">
+                卡密类型
+              </label>
+              <span className="text-[11px] text-[var(--text-muted)]">点击查看详情 / 选择购买</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {TIER_CARDS.map((t) => (
+                <div
+                  key={t.tier}
+                  className={`relative rounded-xl border-2 p-2.5 transition-all ${
+                    t.highlight
+                      ? 'border-[var(--brand-green)] bg-gradient-to-br ' + t.gradient
+                      : 'border-[var(--border-color)] bg-gradient-to-br ' + t.gradient + ' hover:border-[var(--brand-green)]/60'
+                  }`}
+                >
+                  {t.badge && (
+                    <span
+                      className={`absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold text-white ${
+                        t.highlight ? 'bg-[var(--brand-green)]' : 'bg-[var(--color-warning)]'
+                      }`}
+                    >
+                      {t.badge}
+                    </span>
+                  )}
+                  <div className="text-[13px] font-bold text-slate-800">{t.label}</div>
+                  <div className="text-[10px] text-slate-600 mt-0.5">{t.duration}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* 卡密输入 */}
           <div>
             <label className="block text-[12px] font-semibold text-[var(--text-secondary)] mb-1.5">
-              卡密
+              输入卡密
             </label>
             <input
               type="text"
@@ -265,26 +367,6 @@ export function ActivationModal() {
               </button>
             </div>
           </div>
-
-          {/* 卡密类型说明 */}
-          <details className="group">
-            <summary className="text-[12px] font-semibold text-[var(--text-secondary)] cursor-pointer select-none flex items-center gap-1 hover:text-[var(--brand-green)]">
-              查看卡密类型说明
-              <span className="text-[10px] text-[var(--text-muted)] group-open:hidden">▼</span>
-              <span className="text-[10px] text-[var(--text-muted)] hidden group-open:inline">▲</span>
-            </summary>
-            <ul className="mt-2 space-y-1 text-[11px] text-[var(--text-muted)]">
-              {TIER_PRICE_HINTS.map((t) => (
-                <li
-                  key={t.label}
-                  className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-[var(--bg-main)]"
-                >
-                  <span className="text-[var(--text-secondary)] font-medium">{t.label}</span>
-                  <span>{t.tip}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
 
           {/* 安全提示 */}
           <div className="flex items-start gap-2 text-[11px] text-[var(--text-muted)]">
