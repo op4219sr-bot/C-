@@ -8,6 +8,7 @@ mod cleaner;
 mod commands;
 mod data_dir;
 mod health_score;
+mod license;
 mod logger;
 mod scanner;
 mod system_info;
@@ -15,6 +16,10 @@ mod system_slim;
 
 // 导出命令模块
 use commands::*;
+use license::commands::{
+    activate_license, deactivate_license, get_license_status, get_machine_fingerprint,
+    verify_card_format,
+};
 use tauri::Manager;
 
 // ============================================================================
@@ -43,6 +48,9 @@ async fn close_splashscreen(app: tauri::AppHandle) -> Result<(), String> {
 pub fn run() {
     // 初始化日志
     env_logger::init();
+
+    // 加载本地 license（如有）
+    license::init_license_state();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -118,6 +126,12 @@ pub fn run() {
             set_data_directory,
             clear_local_data,
             pick_folder_dialog,
+            // 卡密 / License 激活
+            get_license_status,
+            get_machine_fingerprint,
+            activate_license,
+            deactivate_license,
+            verify_card_format,
         ])
         .run(tauri::generate_context!())
         .expect("启动应用程序时发生错误");

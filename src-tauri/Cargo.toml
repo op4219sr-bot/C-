@@ -53,3 +53,21 @@ once_cell = "1.19"
 trash = "5"
 # 正则匹配（卸载残留包名/版本号过滤）
 regex = "1"
+# ===== License / 卡密激活 =====
+# Ed25519 签名验证（验证服务器下发的 license token）
+ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+# AES-GCM 加密 license.dat（基于机器指纹派生密钥）
+aes-gcm = { version = "0.10", features = ["std"] }
+# HKDF 密钥派生
+hkdf = "0.12"
+sha2 = "0.10"
+# CRC32 校验位（卡密前端格式校验）
+crc32fast = "1"
+# HTTP 客户端（仅激活时调用后端 API）
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+# HMAC 请求签名
+hmac = "0.12"
+# base64 (license token 编码)
+base64 = "0.22"
+# UUID（请求追踪用，可选）
+uuid = { version = "1", features = ["v4"] }

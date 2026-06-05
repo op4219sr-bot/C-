@@ -2,6 +2,7 @@
 // 大目录分析与下钻命令
 // ============================================================================
 
+use crate::license::guard::ensure_premium;
 use log::info;
 use serde::{Deserialize, Serialize};
 
@@ -110,6 +111,7 @@ pub async fn cleanup_directory_contents(path: String) -> Result<CleanupDirectory
     use std::fs;
     use walkdir::WalkDir;
 
+    ensure_premium()?;
     info!("开始清理目录内容: {}", path);
 
     let target_path = std::path::PathBuf::from(&path);

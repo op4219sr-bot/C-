@@ -2,6 +2,7 @@
 // ProgramData 分析与清理命令
 // ============================================================================
 
+use crate::license::guard::ensure_premium;
 use log::info;
 use serde::{Deserialize, Serialize};
 
@@ -351,6 +352,7 @@ pub async fn clean_programdata(
 ) -> Result<crate::scanner::BatchCleanResult, String> {
     use crate::scanner::{CleanOptions, ProgramDataCleaner};
 
+    ensure_premium()?;
     let allow_warning = allow_warning.unwrap_or(false);
 
     info!(

@@ -2,6 +2,7 @@
 // 系统相关命令（系统瘦身 + 健康评分 + 系统信息）
 // ============================================================================
 
+use crate::license::guard::ensure_premium;
 use log::info;
 use tauri::Window;
 
@@ -29,18 +30,21 @@ pub async fn get_system_slim_status() -> SystemSlimStatus {
 /// 关闭休眠功能
 #[tauri::command]
 pub fn disable_hibernation() -> Result<String, String> {
+    ensure_premium()?;
     crate::system_slim::disable_hibernation()
 }
 
 /// 开启休眠功能
 #[tauri::command]
 pub fn enable_hibernation() -> Result<String, String> {
+    ensure_premium()?;
     crate::system_slim::enable_hibernation()
 }
 
 /// 清理 WinSxS 组件存储
 #[tauri::command]
 pub async fn cleanup_winsxs(window: Window) -> Result<String, String> {
+    ensure_premium()?;
     crate::system_slim::cleanup_winsxs(&window).await
 }
 

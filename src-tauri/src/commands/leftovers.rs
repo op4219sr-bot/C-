@@ -2,6 +2,7 @@
 // 卸载残留扫描与删除命令
 // ============================================================================
 
+use crate::license::guard::ensure_premium;
 use crate::scanner::{LeftoverScanResult, LeftoverScanner};
 use log::info;
 
@@ -34,6 +35,7 @@ pub async fn scan_uninstall_leftovers(
 pub async fn delete_leftover_folders(
     paths: Vec<String>,
 ) -> Result<crate::scanner::LeftoverDeleteResult, String> {
+    ensure_premium()?;
     info!("开始删除 {} 个卸载残留文件夹...", paths.len());
 
     let result = tokio::task::spawn_blocking(move || crate::scanner::delete_folders(paths))
