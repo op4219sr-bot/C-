@@ -3,11 +3,6 @@
   "private": true,
   "version": "2.4.2",
   "type": "module",
-  "author": {
-    "name": "Evan Lau",
-    "email": "liucygm33@gmail.com",
-    "url": "https://evansapce.icu"
-  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

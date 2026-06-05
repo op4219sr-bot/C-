@@ -121,14 +121,12 @@ function BrandFooter() {
     >
       {/* 品牌标识 */}
       <p className="text-xs text-zinc-500 tracking-wide">
-        Evan的像素空间 · 官方正版
+        LightC · 官方正版
       </p>
 
       {/* 警示语 */}
       <p className="text-[10px] text-zinc-600 text-center leading-relaxed">
-        ⚠️ 严防篡改：请确认通过 B站{' '}
-        <span className="text-zinc-400 font-medium">@Evan的像素空间</span>{' '}
-        官方渠道下载
+        ⚠️ 严防篡改：请通过官方渠道下载
       </p>
     </motion.div>
   );
