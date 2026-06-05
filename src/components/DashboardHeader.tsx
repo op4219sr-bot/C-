@@ -7,6 +7,7 @@ import { useEffect, useState, useRef } from 'react';
 import { HardDrive, Moon, Trash2, Zap, Square } from 'lucide-react';
 import { useDashboard } from '../contexts/DashboardContext';
 import { formatSize } from '../utils/format';
+import { PremiumBadge } from './license';
 
 // ============================================================================
 // 数字跳动动画 Hook
@@ -215,8 +216,9 @@ export function DashboardHeader({ onOneClickScan, onShowWelcome }: DashboardHead
         {/* 分隔线 */}
         <div className="w-px h-12 bg-[var(--border-color)]" />
 
-        {/* 一键扫描按钮区域 */}
+        {/* 会员徽标 + 一键扫描按钮区域 */}
         <div className="flex items-center gap-2">
+          <PremiumBadge />
           {isAnyScanning ? (
             <button
               onClick={stopAllScans}

@@ -25,3 +25,4 @@ export { SplashScreen } from './SplashScreen';
 export { Footer } from './Footer';
 export { AnchorNav } from './AnchorNav';
 export * from './modules';
+export { ActivationModal, PremiumBadge, LicenseInfoPanel } from './license';

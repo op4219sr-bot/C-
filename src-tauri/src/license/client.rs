@@ -39,7 +39,6 @@ pub struct ActivateResponse {
 
 #[derive(Debug, Serialize)]
 pub struct UnbindRequest<'a> {
-    pub card: &'a str,
     pub fingerprint: &'a str,
     pub reason: Option<&'a str>,
 }
@@ -74,12 +73,10 @@ pub async fn activate(card: &str, fingerprint: &str) -> Result<ActivateResponse,
 }
 
 pub async fn unbind(
-    card: &str,
     fingerprint: &str,
     reason: Option<&str>,
 ) -> Result<UnbindResponse, String> {
     let body = UnbindRequest {
-        card,
         fingerprint,
         reason,
     };

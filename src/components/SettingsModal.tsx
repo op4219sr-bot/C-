@@ -16,6 +16,7 @@ import { Type } from 'lucide-react';
 import { getVersion } from '@tauri-apps/api/app';
 import { getSystemInfo, type SystemInfo, openLogsFolder, openStartupManager, openStorageSettings, getDataDirectory, setDataDirectory, clearLocalData, pickFolderDialog, openInFolder } from '../api/commands';
 import { formatSize } from '../utils/format';
+import { LicenseInfoPanel } from './license';
 
 type SettingsTab = 'general' | 'features' | 'guide' | 'feedback' | 'about';
 
@@ -405,6 +406,11 @@ function GeneralSettings({ mode, setMode }: { mode: ThemeMode; setMode: (mode: T
             <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors" />
           </button>
         </div>
+      </div>
+
+      {/* 我的授权（卡密激活状态） */}
+      <div className="pt-2 border-t border-[var(--border-color)]">
+        <LicenseInfoPanel />
       </div>
     </div>
   );

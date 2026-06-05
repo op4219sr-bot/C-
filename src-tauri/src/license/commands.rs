@@ -63,23 +63,23 @@ pub async fn activate_license(card: String) -> Result<ActivateResult, String> {
     Ok(ActivateResult { status })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct DeactivateRequest {
     /// 可选：用户描述解绑原因（更换设备 / 系统重装等）
     #[serde(default)]
     pub reason: Option<String>,
-    /// 用户当前激活的卡密（前端在状态显示页存有，传回来用于通知服务器）
-    pub card: String,
 }
 
 #[tauri::command]
-pub async fn deactivate_license(request: DeactivateRequest) -> Result<LicenseStatus, String> {
-    let card = normalize_card(&request.card);
+pub async fn deactivate_license(
+    request: Option<DeactivateRequest>,
+) -> Result<LicenseStatus, String> {
+    let req = request.unwrap_or_default();
     let fp = fingerprint::get();
-    info!("[license] deactivate_license: card={}", mask_card(&card));
+    info!("[license] deactivate_license: fingerprint={}", &fp[..8]);
 
     // 尽力通知服务器解绑（失败不阻塞本地清理）
-    if let Err(e) = client::unbind(&card, &fp, request.reason.as_deref()).await {
+    if let Err(e) = client::unbind(&fp, req.reason.as_deref()).await {
         warn!("[license] 通知服务器解绑失败: {}（仍继续本地清理）", e);
     }
 
