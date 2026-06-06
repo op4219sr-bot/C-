@@ -103,50 +103,12 @@ jobs:
           }
 
           # 启动脚本
-          $BatContent = @"
-@echo off
-chcp 65001 >nul
-title LightC ${{ github.run_number }} 测试版
-
-set "LIGHTC_API_BASE=http://localhost:8088"
-set "RUST_LOG=info"
-
-echo.
-echo  =============================================================
-echo   LightC 测试版（GitHub Actions MSVC build #${{ github.run_number }}）
-echo   API 地址：%LIGHTC_API_BASE%
-echo  =============================================================
-echo.
-echo  提示：先把卡密后台跑起来 ^(cd server ^&^& npm start^)
-echo.
-
-start "" "%~dp0LightC.exe"
-"@
-          Set-Content -Path "$PortableDir\启动.bat" -Value $BatContent -Encoding UTF8
+          $bat = "@echo off`r`nchcp 65001 >nul`r`ntitle LightC ${{ github.run_number }} 测试版`r`n`r`nset `"LIGHTC_API_BASE=http://localhost:8088`"`r`nset `"RUST_LOG=info`"`r`n`r`necho.`r`necho  =============================================================`r`necho   LightC 测试版（GitHub Actions MSVC build #${{ github.run_number }}）`r`necho   API 地址：%LIGHTC_API_BASE%`r`necho  =============================================================`r`necho.`r`necho  提示：先把卡密后台跑起来 ^(cd server ^&^& npm start^)`r`necho.`r`n`r`nstart `"`" `"%~dp0LightC.exe`""
+          Set-Content -Path "$PortableDir\启动.bat" -Value $bat -Encoding UTF8 -NoNewline
 
           # 使用说明
-          $Readme = @"
-LightC 卡密版 · Windows 测试包
-
-【运行】
-- 推荐：双击「启动.bat」（自动配置 API 为 localhost:8088）
-- 也可：直接双击 LightC.exe（使用默认 API 地址）
-
-【前提】
-- 卡密后台已在 8088 端口运行
-  cd server && npm install && npm start
-- 已安装 Edge WebView2 Runtime（Win11 预装，Win10 检查/安装）
-
-【激活流程】
-1. 后台生成日卡：http://localhost:8088/admin/ 或
-   node scripts/gen-cards.js --tier day --count 5
-2. 启动客户端，点任意「一键清理」按钮
-3. 粘贴卡密，激活
-4. 顶栏看到「日卡 · 剩 1 天」徽标即成功
-
-构建版本：MSVC release (GitHub Actions run #${{ github.run_number }})
-"@
-          Set-Content -Path "$PortableDir\使用说明.txt" -Value $Readme -Encoding UTF8
+          $readme = "LightC 卡密版 · Windows 测试包`r`n`r`n【运行】`r`n- 推荐：双击「启动.bat」（自动配置 API 为 localhost:8088）`r`n- 也可：直接双击 LightC.exe（使用默认 API 地址）`r`n`r`n【前提】`r`n- 卡密后台已在 8088 端口运行`r`n  cd server `&`& npm install `&`& npm start`r`n- 已安装 Edge WebView2 Runtime（Win11 预装，Win10 检查/安装）`r`n`r`n【激活流程】`r`n1. 后台生成日卡：http://localhost:8088/admin/ 或`r`n   node scripts/gen-cards.js --tier day --count 5`r`n2. 启动客户端，点任意「一键清理」按钮`r`n3. 粘贴卡密，激活`r`n4. 顶栏看到「日卡 · 剩 1 天」徽标即成功`r`n`r`n构建版本：MSVC release (GitHub Actions run #${{ github.run_number }})"
+          Set-Content -Path "$PortableDir\使用说明.txt" -Value $readme -Encoding UTF8 -NoNewline
 
           Compress-Archive -Path "$PortableDir\*" -DestinationPath $ZipName -Force
           Remove-Item $PortableDir -Recurse -Force
