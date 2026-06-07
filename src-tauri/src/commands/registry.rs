@@ -2,6 +2,7 @@
 // 注册表和右键菜单清理命令
 // ============================================================================
 
+use crate::license::guard::ensure_premium;
 use crate::scanner::{
     RegistryBackup, RegistryDeleteResult, RegistryEntry, RegistryScanResult, RegistryScanner,
 };
@@ -33,6 +34,7 @@ pub async fn scan_registry_redundancy() -> Result<RegistryScanResult, String> {
 pub async fn delete_registry_entries(
     entries: Vec<RegistryEntry>,
 ) -> Result<RegistryDeleteResult, String> {
+    ensure_premium()?;
     info!("开始删除 {} 个注册表条目...", entries.len());
 
     let backup_dir = RegistryBackup::get_backup_dir();
@@ -130,6 +132,7 @@ pub async fn delete_context_menu_entries(
 ) -> Result<crate::scanner::ContextMenuDeleteResult, String> {
     use crate::scanner::delete_context_menu_entries as do_delete;
 
+    ensure_premium()?;
     info!("开始删除 {} 个右键菜单条目", entries.len());
 
     let result = tokio::task::spawn_blocking(move || do_delete(&entries))

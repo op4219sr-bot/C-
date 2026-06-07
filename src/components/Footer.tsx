@@ -13,18 +13,6 @@ export function Footer() {
         <p className="text-[11px] text-[var(--text-muted)]">
           © {currentYear} LightC · All rights reserved.
         </p>
-
-        {/* 正版渠道提示 */}
-        {/* <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--bg-hover)]">
-          <Shield className="w-3.5 h-3.5 text-[var(--brand-green)]" />
-          <p className="text-[11px] text-[var(--text-secondary)]">
-            官方发布渠道：
-            <a className="text-[var(--brand-green)] font-medium mx-1" href="https://github.com/Chunyu33/light-c/releases" target="_blank" >GitHub Releases</a>
-            ·
-            <a className="text-[var(--text-muted)] mx-1" href='https://space.bilibili.com/387797235' target="_blank">B站 @Evan的像素空间</a>
-            · 请勿从第三方下载站获取
-          </p>
-        </div> */}
       </div>
     </footer>
   );

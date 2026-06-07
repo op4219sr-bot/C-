@@ -9,3 +9,4 @@ export type { ModuleStatus, ModuleState, ModulesState, DashboardContextValue } f
 export { FontSizeProvider, useFontSize, FONT_SIZE_CONFIGS } from './FontSizeContext';
 export type { FontSizeLevel } from './FontSizeContext';
 export { SettingsProvider, useSettings } from './SettingsContext';
+export { LicenseProvider, useLicense } from './LicenseContext';

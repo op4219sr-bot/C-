@@ -256,7 +256,7 @@ fn is_hidden_by_path(path: &Path) -> bool {
 }
 
 /// 计算 path 相对于 root 的层级深度
-/// 例如 root=C:\ 时，C:\Users → 1，C:\Users\Evan → 2
+/// 例如 root=C:\ 时，C:\Users → 1，C:\Users\Alice → 2
 fn calculate_relative_depth(root: &Path, path: &Path) -> usize {
     path.strip_prefix(root)
         .map(|p| p.components().count())
@@ -479,7 +479,7 @@ impl HotspotScanner {
     /// 核心优化：
     /// - 顺序扫描：避免 SSD 随机 metadata 风暴（Win11 + Defender 下尤其严重）
     /// - 祖先聚合：每个文件向上聚合到前 N 层祖先目录（Fast=4, Accurate=8）
-    ///   使得 Users/Evan/AppData/Local/微信 等深层热点目录直接可见
+    ///   使得 Users/Alice/AppData/Local/微信 等深层热点目录直接可见
     /// - 巨型目录跳过：WinSxS 等 HEAVY_SKIP_DIRS 不递归进入
     /// - 每文件仅一次 metadata() 调用
     fn scan_full_disk(
@@ -1100,8 +1100,8 @@ impl HotspotScanner {
 /// - process_read_dir 回调在列目录阶段预过滤，防止进入 WinSxS 等巨型目录
 ///
 /// 每个文件向上聚合到**所有**祖先目录，确保每层目录的 total_size 包含全部后代。
-/// 例如文件 `C:\Users\Evan\AppData\Local\微信\Cache\a.dat`：
-/// 聚合到 Users\Evan、Users\Evan\AppData、Users\Evan\AppData\Local、Users\Evan\AppData\Local\微信、Users\Evan\AppData\Local\微信\Cache
+/// 例如文件 `C:\Users\Alice\AppData\Local\微信\Cache\a.dat`：
+/// 聚合到 Users\Alice、Users\Alice\AppData、Users\Alice\AppData\Local、Users\Alice\AppData\Local\微信、Users\Alice\AppData\Local\微信\Cache
 ///
 /// 返回 (根目录统计, 所有祖先目录统计 map)
 fn aggregate_ancestor_stats(

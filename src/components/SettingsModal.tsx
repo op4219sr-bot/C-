@@ -16,6 +16,7 @@ import { Type } from 'lucide-react';
 import { getVersion } from '@tauri-apps/api/app';
 import { getSystemInfo, type SystemInfo, openLogsFolder, openStartupManager, openStorageSettings, getDataDirectory, setDataDirectory, clearLocalData, pickFolderDialog, openInFolder } from '../api/commands';
 import { formatSize } from '../utils/format';
+import { LicenseInfoPanel } from './license';
 
 type SettingsTab = 'general' | 'features' | 'guide' | 'feedback' | 'about';
 
@@ -405,6 +406,11 @@ function GeneralSettings({ mode, setMode }: { mode: ThemeMode; setMode: (mode: T
             <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors" />
           </button>
         </div>
+      </div>
+
+      {/* 我的授权（卡密激活状态） */}
+      <div className="pt-2 border-t border-[var(--border-color)]">
+        <LicenseInfoPanel />
       </div>
     </div>
   );
@@ -855,7 +861,7 @@ function FeedbackSettings() {
 
           <div className="space-y-2">
             <a
-              href="https://github.com/Chunyu33/light-c/issues"
+              href="https://github.com/op4219sr-bot/C-/issues"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] transition-colors group"
@@ -1102,25 +1108,9 @@ function AboutSettings() {
         </h4>
         <div className="bg-[var(--bg-main)] rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[var(--text-secondary)]">作者</span>
-            <span className="text-sm font-medium text-[var(--text-primary)]">Evan Lau</span>
-          </div>
-          {/* <div className="flex items-center justify-between">
-            <span className="text-sm text-[var(--text-secondary)]">官方网站</span>
-            <a
-              href="https://evanspace.icu/lightc"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-[var(--brand-green)] hover:opacity-80 flex items-center gap-1"
-            >
-              LightC
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div> */}
-          <div className="flex items-center justify-between">
             <span className="text-sm text-[var(--text-secondary)]">开源地址</span>
             <a
-              href="https://github.com/Chunyu33/light-c"
+              href="https://github.com/op4219sr-bot/C-"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-medium text-[var(--brand-green)] hover:opacity-80 flex items-center gap-1"
@@ -1139,7 +1129,7 @@ function AboutSettings() {
           更新日志
         </h4>
         <a
-          href="https://github.com/Chunyu33/light-c/blob/main/update-logs.md"
+          href="https://github.com/op4219sr-bot/C-/blob/main/CHANGELOG.md"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-main)] hover:bg-[var(--bg-hover)] transition-colors group"

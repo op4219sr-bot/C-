@@ -5,11 +5,11 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { 
-  SettingsModal, 
-  TitleBar, 
-  ToastProvider, 
-  WelcomeModal, 
+import {
+  SettingsModal,
+  TitleBar,
+  ToastProvider,
+  WelcomeModal,
   shouldShowWelcome,
   UpdateModal,
   DashboardHeader,
@@ -25,8 +25,16 @@ import {
   SplashScreen,
   Footer,
   AnchorNav,
+  ActivationModal,
 } from './components';
-import { DashboardProvider, useDashboard, FontSizeProvider, SettingsProvider, useSettings } from './contexts';
+import {
+  DashboardProvider,
+  useDashboard,
+  FontSizeProvider,
+  SettingsProvider,
+  useSettings,
+  LicenseProvider,
+} from './contexts';
 import './App.css';
 
 // ============================================================================
@@ -68,6 +76,9 @@ function DashboardContent() {
 
       {/* 自动更新检查弹窗 */}
       <UpdateModal autoCheck={true} />
+
+      {/* 卡密激活弹窗（由 LicenseContext 触发） */}
+      <ActivationModal />
 
       {/* 锚点导航（根据设置显示） */}
       {settings.showAnchorNav && <AnchorNav scrollContainerRef={scrollContainerRef} />}
@@ -157,9 +168,11 @@ function App() {
     <FontSizeProvider>
       <SettingsProvider>
         <ToastProvider>
-          <DashboardProvider>
-            <DashboardContent />
-          </DashboardProvider>
+          <LicenseProvider>
+            <DashboardProvider>
+              <DashboardContent />
+            </DashboardProvider>
+          </LicenseProvider>
         </ToastProvider>
       </SettingsProvider>
     </FontSizeProvider>

@@ -3,7 +3,7 @@
 // 封装所有与Rust后端的通信接口
 // ============================================================================
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke as rawInvoke } from '@tauri-apps/api/core';
 import type {
   DiskInfo,
   ScanResult,
@@ -14,6 +14,42 @@ import type {
   DeleteRequest,
   LargeFileEntry,
 } from '../types';
+
+// ============================================================================
+// 全局错误拦截：后端返回 PREMIUM_REQUIRED 时派发自定义事件，
+// LicenseContext 监听并自动弹激活窗。这样所有清理类命令无需逐个改造。
+// ============================================================================
+
+const PREMIUM_REQUIRED_TOKEN = 'PREMIUM_REQUIRED';
+
+/** 自定义事件名 —— LicenseContext 中 addEventListener 接听 */
+export const PREMIUM_REQUIRED_EVENT = 'lightc:premium-required';
+
+function isPremiumRequiredError(err: unknown): boolean {
+  if (typeof err === 'string') return err === PREMIUM_REQUIRED_TOKEN;
+  if (err && typeof err === 'object' && 'message' in err) {
+    return (err as { message: string }).message === PREMIUM_REQUIRED_TOKEN;
+  }
+  return false;
+}
+
+/**
+ * Tauri invoke 的包装：透明转发，遇到 PREMIUM_REQUIRED 时派发全局事件。
+ * 所有 API 调用都走这层，确保任意会员命令被拦截时都能弹出激活窗。
+ */
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  try {
+    return await rawInvoke<T>(cmd, args);
+  } catch (e) {
+    if (isPremiumRequiredError(e)) {
+      window.dispatchEvent(
+        new CustomEvent(PREMIUM_REQUIRED_EVENT, { detail: { command: cmd } }),
+      );
+      throw PREMIUM_REQUIRED_TOKEN;
+    }
+    throw e;
+  }
+}
 
 /**
  * 获取C盘磁盘信息
@@ -1211,3 +1247,69 @@ export async function clearLocalData(): Promise<[number, number]> {
 export async function pickFolderDialog(): Promise<string | null> {
   return invoke<string | null>('pick_folder_dialog');
 }
+
+// ============================================================================
+// 卡密 / License 激活 API
+// ============================================================================
+
+/** 卡密类型枚举（与 Rust 端 Tier 对应） */
+export type LicenseTier = 'day' | 'week' | 'half_month' | 'quarter' | 'half_year' | 'year';
+
+/** License 状态（与 Rust 端 LicenseStatus 对应） */
+export type LicenseStatus =
+  | { status: 'free' }
+  | {
+      status: 'premium';
+      tier: LicenseTier;
+      activated_at: number;   // Unix 秒
+      expires_at: number;     // Unix 秒
+      days_left: number;
+    }
+  | {
+      status: 'expired';
+      tier: LicenseTier;
+      expired_at: number;
+    };
+
+/** 激活结果 */
+export interface ActivateResult {
+  status: LicenseStatus;
+}
+
+/** 查询当前 license 状态（启动时和激活后调用） */
+export async function getLicenseStatus(): Promise<LicenseStatus> {
+  return invoke<LicenseStatus>('get_license_status');
+}
+
+/** 获取机器指纹（用户复制给客服时使用） */
+export async function getMachineFingerprint(): Promise<string> {
+  return invoke<string>('get_machine_fingerprint');
+}
+
+/** 使用卡密激活（联网请求后端 API） */
+export async function activateLicense(card: string): Promise<ActivateResult> {
+  return invoke<ActivateResult>('activate_license', { card });
+}
+
+/** 解绑当前机器（仍保留本地清理，即使联网失败） */
+export async function deactivateLicense(reason?: string): Promise<LicenseStatus> {
+  return invoke<LicenseStatus>('deactivate_license', { request: { reason } });
+}
+
+/** 前端格式校验（CRC32 + 字符集校验） */
+export async function verifyCardFormat(card: string): Promise<boolean> {
+  return invoke<boolean>('verify_card_format', { card });
+}
+
+/** 卡密类型的展示文案 */
+export const TIER_LABEL: Record<LicenseTier, string> = {
+  day: '体验卡（1 天）',
+  week: '周卡（7 天）',
+  half_month: '半月卡（15 天）',
+  quarter: '季卡（90 天）',
+  half_year: '半年卡（180 天）',
+  year: '年卡（365 天）',
+};
+
+/** 后端返回 PREMIUM_REQUIRED 时识别用 */
+export const ERR_PREMIUM_REQUIRED = 'PREMIUM_REQUIRED';

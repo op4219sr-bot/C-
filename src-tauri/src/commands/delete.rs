@@ -6,6 +6,7 @@ use crate::cleaner::{
     DeleteEngine, EnhancedDeleteEngine, EnhancedDeleteResult, PermanentDeleteEngine,
     PermanentDeleteResult, SafetyCheckResult,
 };
+use crate::license::guard::ensure_premium;
 use crate::scanner::DeleteResult;
 use log::info;
 use serde::Deserialize;
@@ -19,6 +20,7 @@ pub struct DeleteRequest {
 /// 删除指定文件
 #[tauri::command]
 pub async fn delete_files(request: DeleteRequest) -> Result<DeleteResult, String> {
+    ensure_premium()?;
     info!("开始删除 {} 个文件", request.paths.len());
 
     let result = tokio::task::spawn_blocking(move || {
@@ -39,6 +41,7 @@ pub async fn delete_files(request: DeleteRequest) -> Result<DeleteResult, String
 /// 增强删除文件
 #[tauri::command]
 pub async fn enhanced_delete_files(paths: Vec<String>) -> Result<EnhancedDeleteResult, String> {
+    ensure_premium()?;
     info!("增强删除: 开始删除 {} 个文件", paths.len());
 
     let result = tokio::task::spawn_blocking(move || {
@@ -91,6 +94,7 @@ pub async fn check_admin_for_path(path: String) -> Result<bool, String> {
 pub async fn delete_leftovers_permanent(
     paths: Vec<String>,
 ) -> Result<PermanentDeleteResult, String> {
+    ensure_premium()?;
     info!("永久删除: 开始深度清理 {} 个卸载残留文件夹", paths.len());
 
     let result = tokio::task::spawn_blocking(move || {
