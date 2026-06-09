@@ -95,12 +95,20 @@ export function ActivationModal() {
   const [errorMsg, setErrorMsg] = useState('');
   const [activatedTier, setActivatedTier] = useState<string>('');
   const [isVisible, setIsVisible] = useState(false);
+  // 与 SettingsModal 一致的"动画期间保留挂载"模式：
+  // - 打开 → 立即挂载，设 isVisible=true 触发入场动画
+  // - 关闭 → 立即 isVisible=false 触发出场动画，190ms 后 isAnimating=false 真正卸载
+  // 之前用 enteredRef 永远不重置，导致关闭后 fixed inset-0 overlay 留在 DOM，
+  // 拦截所有点击 → 整个 UI 卡死。
+  const [isAnimating, setIsAnimating] = useState(false);
+  // 兼容旧逻辑：动画期间标记一次已"进入过"，仅用于过渡动画 class 切换
   const enteredRef = useRef(false);
   if (isVisible) enteredRef.current = true;
 
   // 进出场动画
   useEffect(() => {
     if (isOpen) {
+      setIsAnimating(true);
       setIsVisible(true);
       setErrorMsg('');
       setCard('');
@@ -109,6 +117,12 @@ export function ActivationModal() {
       setActivatedTier('');
     } else {
       setIsVisible(false);
+      // 等待出场动画结束（约 190ms）后真正卸载，释放遮罩对点击的拦截
+      const t = setTimeout(() => {
+        setIsAnimating(false);
+        enteredRef.current = false;
+      }, 200);
+      return () => clearTimeout(t);
     }
   }, [isOpen]);
 
@@ -136,7 +150,8 @@ export function ActivationModal() {
     };
   }, [normalized]);
 
-  if (!isOpen && !enteredRef.current) return null;
+  // 关闭后等待动画结束才真正卸载（出场动画期间 isAnimating=true）
+  if (!isOpen && !isAnimating) return null;
 
   const handleCardChange = (raw: string) => {
     setCard(formatCard(raw));
@@ -196,7 +211,11 @@ export function ActivationModal() {
   // ============================================================
   if (stage === 'success') {
     return createPortal(
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div
+        className={`fixed inset-0 z-[9999] flex items-center justify-center ${
+          isVisible ? '' : 'pointer-events-none'
+        }`}
+      >
         <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${isVisible ? 'modal-overlay-in' : 'modal-overlay-out'}`} />
         <div className={`relative w-[420px] bg-[var(--bg-card)] rounded-2xl shadow-2xl overflow-hidden ${isVisible ? 'modal-content-in' : 'modal-content-out'}`}>
           <div className="px-8 py-10 flex flex-col items-center gap-4">
@@ -229,7 +248,11 @@ export function ActivationModal() {
   const submitting = stage === 'submitting';
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+    <div
+      className={`fixed inset-0 z-[9999] flex items-center justify-center ${
+        isVisible ? '' : 'pointer-events-none'
+      }`}
+    >
       {/* 遮罩 */}
       <div
         className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${
