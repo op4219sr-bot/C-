@@ -18,7 +18,7 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: write   # 创建 Release 需要写权限
 
     steps:
       - name: Checkout repository
@@ -129,16 +129,45 @@ jobs:
           path: ${{ steps.portable.outputs.zip_path }}
           retention-days: 7
 
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-build-${{ github.run_number }}
+          name: 测试构建 #${{ github.run_number }} (MSVC)
+          body: |
+            **未签名的测试构建**（GitHub Actions Windows MSVC）
+
+            ## 产物
+            - **LightC_*-setup.exe** —— NSIS 安装包，双击安装
+            - **LightC_portable_x64.zip** —— 绿色便携版，含「启动.bat」+「使用说明.txt」
+
+            ## 使用前提
+            1. 已部署卡密后台（参考 `LICENSE_SETUP.md` 和 server/README.md）
+            2. 已安装 Microsoft Edge WebView2 Runtime（Win11 已预装）
+
+            ## 默认 API 地址
+            ${{ github.event.inputs.api_base == '' && '`https://license.example.com`（占位，启动 .bat 会用环境变量覆盖到 `http://localhost:8088`）' || format('`{0}`（已编译嵌入）', github.event.inputs.api_base) }}
+
+            ## 构建信息
+            - Commit: `${{ github.sha }}`
+            - Branch: `${{ github.ref_name }}`
+            - Build #: ${{ github.run_number }}
+          prerelease: true
+          draft: false
+          files: |
+            ${{ steps.locate.outputs.nsis_path }}
+            ${{ steps.portable.outputs.zip_path }}
+
       - name: Summary
         shell: pwsh
         run: |
-          echo "## 测试构建完成" >> $env:GITHUB_STEP_SUMMARY
+          echo "## 测试构建完成 ✅" >> $env:GITHUB_STEP_SUMMARY
           echo "" >> $env:GITHUB_STEP_SUMMARY
-          echo "### 产物" >> $env:GITHUB_STEP_SUMMARY
-          echo "- **NSIS 安装包**：点击页面右上角 Artifacts → LightC-NSIS-installer 下载" >> $env:GITHUB_STEP_SUMMARY
-          echo "- **绿色便携版**：点击页面右上角 Artifacts → LightC-portable 下载" >> $env:GITHUB_STEP_SUMMARY
+          echo "### 下载产物" >> $env:GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release**：[test-build-${{ github.run_number }}](https://github.com/${{ github.repository }}/releases/tag/test-build-${{ github.run_number }})（永久访问）" >> $env:GITHUB_STEP_SUMMARY
+          echo "- **Workflow Artifacts**：右上角 Artifacts 标签（7 天内有效）" >> $env:GITHUB_STEP_SUMMARY
           echo "" >> $env:GITHUB_STEP_SUMMARY
-          echo "### 后续" >> $env:GITHUB_STEP_SUMMARY
+          echo "### 使用步骤" >> $env:GITHUB_STEP_SUMMARY
           echo "1. 下载并解压" >> $env:GITHUB_STEP_SUMMARY
           echo "2. 跑后端：``cd server && npm start``" >> $env:GITHUB_STEP_SUMMARY
           echo "3. 双击「启动.bat」即可测试" >> $env:GITHUB_STEP_SUMMARY
