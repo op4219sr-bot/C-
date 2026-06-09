@@ -89,12 +89,16 @@ Rust src-tauri/src/ai_cleaner/
 license/mod.rs 已加 pub sign_app_body() + api_base() 供复用。
 cargo check (x86_64-pc-windows-gnu) 通过，仅项目原有 warning。
 
-### Phase 3 — 后台 LLM 代理（1 天）
-- [ ] P3-1 server/src/routes/ai.js：POST /api/ai/analyze（HMAC 校验 + 会员校验）
-- [ ] P3-2 服务端持有 GLM key（.env 加 GLM_API_KEY）
-- [ ] P3-3 会员额度控制（每卡密每月 N 次，记 DB）
-- [ ] P3-4 db.js：ai_usage 表（card / month / count）
-- [ ] P3-5 admin 后台：AI 用量统计页
+### Phase 3 — 后台 LLM 代理（1 天）✅
+- [x] P3-1 server/src/routes/ai.js：POST /api/ai/analyze（HMAC + 会员 + 额度校验 + 调 GLM）
+- [x] P3-2 服务端持有 GLM key（.env.example 加 GLM_API_KEY/ENDPOINT/MODEL）
+- [x] P3-3 会员额度控制（每卡密每月 N 次，AI_MONTHLY_QUOTA）
+- [x] P3-4 db.js：ai_usage 表 + ai_logs 表 + 相关 stmts
+- [~] P3-5 admin 后台：AI 用量统计页（暂留，可选，后续加）
+
+注：config.js 加 ai.* 配置；index.js 注册 aiApi 路由 + 启动横幅显示。
+已测试 4 个分支：proxy_disabled / bad_signature / no_membership / 启动横幅。
+prompt 与 Rust 端 prompt.rs 保持一致。
 
 ### Phase 4 — 前端 UI（1 天）
 - [ ] P4-1 api/commands.ts：collectAiEvidence / analyzeWithAi 封装 + 类型
@@ -126,21 +130,28 @@ cargo check (x86_64-pc-windows-gnu) 通过，仅项目原有 warning。
 
 ## 4. 当前进度（每次更新！）
 
-**最后更新**：Phase 1 + Phase 2 已完成（Rust 后端核心全部就绪）
-**已完成**：Phase 0 全部 / Phase 1 全部（P1-7 部分）/ Phase 2 除 P2-7
-**下一步**：Phase 3 后台 LLM 代理（server/src/routes/ai.js）→ 然后 Phase 4 前端
+**最后更新**：Phase 1+2+3 已完成（Rust 后端 + Node 后台代理全部就绪）
+**已完成**：Phase 0/1/2/3（P3-5 admin 用量页可选，暂留）
+**下一步**：Phase 4 前端 UI（AiCleanerModule + 证据展示 + AI 报告卡 + 设置）
 **阻塞项**：无
 **分支**：feat-ai-cleaner（push 到 origin/dev）
-**已验证**：cargo check x86_64-pc-windows-gnu 通过
+**已验证**：cargo check 通过；后台 4 分支测试通过
 
 **已创建文件**：
-- src-tauri/src/ai_cleaner/mod.rs（类型定义）
-- src-tauri/src/ai_cleaner/sanitize.rs（脱敏 + 单测）
-- src-tauri/src/ai_cleaner/evidence.rs（6 类证据收集）
-- src-tauri/src/ai_cleaner/prompt.rs（system prompt + few-shot）
-- src-tauri/src/ai_cleaner/llm_client.rs（GLM/BYOK/Proxy 三态）
-- src-tauri/src/ai_cleaner/commands.rs（collect + analyze 命令）
-- 修改 lib.rs（注册模块+命令）、license/mod.rs（加 sign_app_body/api_base）
+- src-tauri/src/ai_cleaner/{mod,sanitize,evidence,prompt,llm_client,commands}.rs
+- server/src/routes/ai.js（AI 代理路由）
+- 修改：lib.rs / license/mod.rs / server/{db,config,index}.js / .env.example
+
+**Phase 4 关键提示**：
+- 参考现有模块：src/components/modules/BigFilesModule.tsx（扫描+列表+会员守卫模式）
+- 会员守卫：useLicense() 的 isPremium / promptActivate
+- API 封装在 src/api/commands.ts，加 collectAiEvidence / analyzeAiEvidence
+- 命令：collect_ai_evidence（无参，返回 EvidencePackage）
+        analyze_ai_evidence（参数 evidence_pkg + config，返回 AiReportResolved）
+- LlmConfig 类型：{ mode: 'proxy'|'byok', api_key?, endpoint?, model? }
+- 删除复用：AiDecisionResolved.evidence_type 决定调 deleteLeftoversPermanent
+  （uninstall_residue）还是 enhancedDeleteFiles（其它）
+- 新模块需接入 App.tsx 模块列表 + DashboardContext 的 modules 状态
 
 ---
 

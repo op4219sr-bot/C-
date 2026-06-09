@@ -45,5 +45,14 @@ export const config = {
   rateLimitPerMin: Number(process.env.RATE_LIMIT_PER_MIN || 60),
   allowDevCors: (process.env.ALLOW_DEV_CORS || 'false') === 'true',
 
+  ai: {
+    glmApiKey: process.env.GLM_API_KEY || '',
+    glmEndpoint:
+      process.env.GLM_ENDPOINT ||
+      'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    glmModel: process.env.GLM_MODEL || 'glm-4-flash',
+    monthlyQuota: Number(process.env.AI_MONTHLY_QUOTA || 30),
+  },
+
   rootDir: ROOT,
 };

@@ -9,6 +9,7 @@ import { config } from './config.js';
 import './db.js'; // 自动迁移
 import clientApi from './routes/api.js';
 import adminApi from './routes/admin.js';
+import aiApi from './routes/ai.js';
 
 const fastify = Fastify({
   logger: { level: 'info' },
@@ -38,6 +39,9 @@ if (config.allowDevCors) {
 // 客户端 API
 await fastify.register(clientApi);
 
+// AI 分析代理
+await fastify.register(aiApi);
+
 // 管理后台（含 API + 静态页 + Basic Auth）
 await fastify.register(adminApi);
 
@@ -60,6 +64,7 @@ try {
   console.log(`  📍  监听地址：http://${config.host}:${config.port}`);
   console.log(`  🔐  管理后台：http://localhost:${config.port}/admin/（${config.admin.user}/${config.admin.pass.replace(/./g, '*')}）`);
   console.log(`  💾  数据库  ：${config.dbPath}`);
+  console.log(`  🤖  AI 代理 ：${config.ai.glmApiKey ? `已启用（${config.ai.glmModel}，月额度 ${config.ai.monthlyQuota || '不限'}）` : '未配置（仅支持客户端自带 Key 模式）'}`);
   console.log('');
   if (config.admin.pass === 'changeme') {
     console.warn('  ⚠️  警告：管理员密码仍为默认值 "changeme"，请尽快在 .env 中修改！');

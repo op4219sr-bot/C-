@@ -66,6 +66,30 @@ CREATE TABLE IF NOT EXISTS unbind_logs (
   approved_by      TEXT,
   created_at       INTEGER NOT NULL
 );
+
+-- AI 分析用量（按 卡密 + 月份 计数，控制会员额度）
+CREATE TABLE IF NOT EXISTS ai_usage (
+  card             TEXT NOT NULL,
+  month            TEXT NOT NULL,           -- YYYY-MM
+  count            INTEGER NOT NULL DEFAULT 0,
+  last_used_at     INTEGER,
+  PRIMARY KEY (card, month)
+);
+
+-- AI 分析调用日志（审计 + 排查）
+CREATE TABLE IF NOT EXISTS ai_logs (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  card             TEXT,
+  fingerprint      TEXT NOT NULL,
+  evidence_count   INTEGER,
+  result           TEXT NOT NULL,           -- success / quota_exceeded / no_membership / llm_error
+  tokens_in        INTEGER,
+  tokens_out       INTEGER,
+  created_at       INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_logs_card ON ai_logs(card);
+CREATE INDEX IF NOT EXISTS idx_ai_logs_time ON ai_logs(created_at);
 `;
 
 export function migrate() {
@@ -123,4 +147,22 @@ export const stmts = {
   maxSeqByTier: db.prepare(`SELECT COALESCE(MAX(seq), 0) AS max_seq FROM cards WHERE tier = ?`),
   countByStatus: db.prepare(`SELECT status, COUNT(*) AS c FROM cards GROUP BY status`),
   countByTier: db.prepare(`SELECT tier, COUNT(*) AS c FROM cards GROUP BY tier`),
+
+  // AI 用量
+  getAiUsage: db.prepare(`SELECT count FROM ai_usage WHERE card = ? AND month = ?`),
+  upsertAiUsage: db.prepare(`
+    INSERT INTO ai_usage (card, month, count, last_used_at)
+    VALUES (@card, @month, 1, @last_used_at)
+    ON CONFLICT(card, month) DO UPDATE SET
+      count = count + 1,
+      last_used_at = @last_used_at
+  `),
+  insertAiLog: db.prepare(`
+    INSERT INTO ai_logs (card, fingerprint, evidence_count, result, tokens_in, tokens_out, created_at)
+    VALUES (@card, @fingerprint, @evidence_count, @result, @tokens_in, @tokens_out, @created_at)
+  `),
+  aiUsageThisMonth: db.prepare(`
+    SELECT COUNT(*) AS cards, COALESCE(SUM(count), 0) AS total
+    FROM ai_usage WHERE month = ?
+  `),
 };
