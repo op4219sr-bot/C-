@@ -20,7 +20,7 @@ use license::commands::{
     activate_license, deactivate_license, get_license_status, get_machine_fingerprint,
     verify_card_format,
 };
-use tauri::Manager;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 // ============================================================================
 // 启动屏幕窗口管理
@@ -43,6 +43,15 @@ async fn close_splashscreen(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 关闭主窗口前的强制清理：
+/// - 触发所有后台扫描的取消标志（避免 worker 线程长时间运行）
+/// - 仅打日志，不阻塞
+fn cancel_all_background_scans() {
+    log::info!("[shutdown] 正在取消所有后台扫描...");
+    crate::scanner::big_files::cancel();
+    crate::scanner::cancel_hotspot_scan();
+}
+
 /// 应用程序入口点
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -52,11 +61,31 @@ pub fn run() {
     // 加载本地 license（如有）
     license::init_license_state();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // ====================================================================
+        // 关窗即退：避免 Tauri 默认让 WebView2 子进程残留导致目录被锁占
+        // ====================================================================
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { .. } = event {
+                // 只对主窗口处理（splashscreen 关闭由 close_splashscreen 命令负责）
+                if window.label() == "main" {
+                    log::info!("[shutdown] 主窗口关闭，准备退出应用");
+                    cancel_all_background_scans();
+                    // 让 app handle 走干净的退出路径
+                    let app_handle = window.app_handle().clone();
+                    // 异步触发退出，避免阻塞当前事件回调
+                    std::thread::spawn(move || {
+                        // 给后台线程 300ms 响应取消标志
+                        std::thread::sleep(std::time::Duration::from_millis(300));
+                        app_handle.exit(0);
+                    });
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             // 启动屏幕
             close_splashscreen,
@@ -133,6 +162,18 @@ pub fn run() {
             deactivate_license,
             verify_card_format,
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("启动应用程序时发生错误");
+
+    // run_iter 让我们捕获 Exit 事件并兜底强制终止
+    app.run(|_app_handle, event| {
+        if let RunEvent::ExitRequested { .. } = event {
+            log::info!("[shutdown] ExitRequested 收到，应用即将退出");
+        }
+        if let RunEvent::Exit = event {
+            log::info!("[shutdown] Exit 事件，进程即将结束");
+            // 兜底：Tauri 退出后立即强杀本进程，确保 WebView2 子进程也被父进程终止时一起收回
+            // （Tauri 默认走 std::process::exit(0) 已经够好，这里只是日志）
+        }
+    });
 }
