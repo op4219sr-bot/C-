@@ -11,6 +11,7 @@ import { ModuleCard } from '../ModuleCard';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { useToast } from '../Toast';
 import { useDashboard } from '../../contexts/DashboardContext';
+import { useLicense } from '../../contexts/LicenseContext';
 import { scanLargeFiles, cancelLargeFileScan, deleteFiles, openInFolder, openFile, recordCleanupAction, type CleanupLogEntryInput } from '../../api/commands';
 import { formatSize, formatDate, getRiskLevelColor, getRiskLevelBgColor, getRiskLevelText } from '../../utils/format';
 import type { LargeFileEntry, LargeFileScanProgress } from '../../types';
@@ -19,10 +20,14 @@ import type { LargeFileEntry, LargeFileScanProgress } from '../../types';
 // 组件实现
 // ============================================================================
 
+/** 免费版大文件展示上限（会员扫描完整 50 个） */
+const FREE_BIG_FILES_LIMIT = 20;
+
 export function BigFilesModule() {
   const { modules, expandedModule, setExpandedModule, updateModuleState, triggerHealthRefresh, oneClickScanTrigger } = useDashboard();
   const moduleState = modules.bigFiles;
   const { showToast } = useToast();
+  const { isPremium, promptActivate } = useLicense();
 
   // 防止重复扫描
   const scanningRef = useRef(false);
@@ -70,7 +75,9 @@ export function BigFilesModule() {
     setSelectedFiles(new Set());
 
     try {
-      const results = await scanLargeFiles();
+      // 免费用户限制 Top 20，会员看完整 50
+      const effectiveTopN = isPremium ? undefined : FREE_BIG_FILES_LIMIT;
+      const results = await scanLargeFiles(effectiveTopN);
       setFiles(results);
 
       const totalSize = results.reduce((sum, f) => sum + f.size, 0);
@@ -87,7 +94,7 @@ export function BigFilesModule() {
     } finally {
       scanningRef.current = false;
     }
-  }, [updateModuleState, setExpandedModule]);
+  }, [updateModuleState, setExpandedModule, isPremium]);
 
   // 监听一键扫描触发器
   useEffect(() => {
@@ -447,6 +454,16 @@ export function BigFilesModule() {
                 );
               })}
             </div>
+          )}
+
+          {/* 免费版限额提示 */}
+          {!isPremium && files.length >= FREE_BIG_FILES_LIMIT && (
+            <button
+              onClick={() => promptActivate({ hint: '免费版仅展示前 20 个大文件，开通会员查看完整 50 个' })}
+              className="w-full mt-3 px-4 py-3 rounded-lg border border-dashed border-[var(--brand-green)]/40 bg-[var(--brand-green)]/5 hover:bg-[var(--brand-green)]/10 text-[12px] text-[var(--brand-green)] font-medium transition-colors"
+            >
+              🔓 免费版仅展示前 {FREE_BIG_FILES_LIMIT} 个 · 点击开通会员查看完整列表
+            </button>
           )}
         </div>
       </ModuleCard>

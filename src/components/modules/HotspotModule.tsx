@@ -11,7 +11,7 @@ import { listen } from '@tauri-apps/api/event';
 import { ModuleCard } from '../ModuleCard';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { useToast } from '../Toast';
-import { useDashboard, useSettings } from '../../contexts';
+import { useDashboard, useSettings, useLicense } from '../../contexts';
 import { scanHotspot, cancelHotspotScan, openInFolder, cleanupDirectoryContents, type HotspotScanResult, type HotspotEntry, type HotspotScanProgress } from '../../api/commands';
 import { formatSize } from '../../utils/format';
 import { DrillDownModal } from './DrillDownModal';
@@ -319,6 +319,7 @@ export function HotspotModule() {
   const moduleState = modules.hotspot;
   const { showToast } = useToast();
   const { settings } = useSettings();
+  const { isPremium, promptActivate } = useLicense();
 
   const lastScanTriggerRef = useRef(0);
   const scanningRef = useRef(false);
@@ -394,9 +395,11 @@ export function HotspotModule() {
     setScanProgress(null);
 
     try {
+      // 深度扫描仅会员可用，免费用户即使开关曾打开也强制走 AppData 模式
+      const effectiveFullScan = fullScanEnabled && isPremium;
       // 根据深度扫描开关决定扫描模式（全盘扫描条目更多）
-      const topN = fullScanEnabled ? 80 : 50;
-      const result = await scanHotspot(topN, fullScanEnabled, settings.hotspotDepth, settings.hotspotSizeThreshold, settings.hotspotIgnoreSystemDirs);
+      const topN = effectiveFullScan ? 80 : 50;
+      const result = await scanHotspot(topN, effectiveFullScan, settings.hotspotDepth, settings.hotspotSizeThreshold, settings.hotspotIgnoreSystemDirs);
       setScanResult(result);
 
       // 卡片摘要：展示的目录数 + 扫描覆盖总大小（与内部统计行一致）
@@ -413,7 +416,7 @@ export function HotspotModule() {
       scanningRef.current = false;
       setScanProgress(null);
     }
-  }, [updateModuleState, fullScanEnabled, settings]);
+  }, [updateModuleState, fullScanEnabled, isPremium, settings]);
 
   // 取消扫描
   const handleStopScan = useCallback(async () => {
@@ -534,19 +537,32 @@ export function HotspotModule() {
       scanButtonText="开始扫描"
       error={error}
       headerExtra={
-        // 深度扫描开关 - 参考卸载残留模块样式
+        // 深度扫描开关 - 仅会员可用（免费版只能扫 AppData）
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setFullScanEnabled(!fullScanEnabled)}
+            onClick={() => {
+              if (!isPremium) {
+                promptActivate({ hint: '深度全盘扫描需要会员，可查看 C 盘根目录下所有大目录' });
+                return;
+              }
+              setFullScanEnabled(!fullScanEnabled);
+            }}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-              fullScanEnabled
+              fullScanEnabled && isPremium
                 ? 'bg-[var(--brand-green)] text-white'
                 : 'bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-color)]'
-            }`}
-            title={fullScanEnabled ? '当前：全盘深度扫描' : '当前：仅扫描 AppData'}
+            } ${!isPremium ? 'opacity-75' : ''}`}
+            title={
+              !isPremium
+                ? '深度全盘扫描需要会员（点击查看详情）'
+                : fullScanEnabled
+                  ? '当前：全盘深度扫描'
+                  : '当前：仅扫描 AppData'
+            }
           >
             <Eye className="w-3.5 h-3.5" />
             深度扫描
+            {!isPremium && <span className="text-[10px] opacity-70">🔒</span>}
           </button>
         </div>
       }

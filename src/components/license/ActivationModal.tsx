@@ -19,6 +19,11 @@ import {
   AlertCircle,
   Zap,
   TrendingUp,
+  Package,
+  ShieldAlert,
+  ClipboardList,
+  Rocket,
+  Layers,
 } from 'lucide-react';
 import { useLicense } from '../../contexts/LicenseContext';
 import {
@@ -62,6 +67,19 @@ const TIER_CARDS: TierMeta[] = [
 ];
 
 type ModalStage = 'input' | 'submitting' | 'success';
+
+/** 会员卖点行（A 方案：突出"批量、安全、有记录"等价值） */
+function FeatureRow({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="mt-0.5 shrink-0 text-[var(--brand-green)]">{icon}</span>
+      <div className="min-w-0">
+        <div className="font-semibold text-[var(--text-primary)] leading-tight">{title}</div>
+        <div className="text-[var(--text-muted)] leading-tight mt-0.5">{desc}</div>
+      </div>
+    </div>
+  );
+}
 
 export function ActivationModal() {
   const { prompt, closePrompt, onActivationSuccess } = useLicense();
@@ -270,6 +288,46 @@ export function ActivationModal() {
 
         {/* 主体 */}
         <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
+          {/* 会员价值卖点（A：重新定义"会员到底买的是啥"） */}
+          <div className="rounded-xl border border-[var(--brand-green)]/20 bg-gradient-to-br from-[var(--brand-green)]/5 to-transparent p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--brand-green)]" />
+              <span className="text-[12px] font-bold text-[var(--text-primary)]">会员能多做什么</span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
+              <FeatureRow
+                icon={<Package className="w-3.5 h-3.5" />}
+                title="批量清理"
+                desc="勾选 N 个目录一键删，10 分钟 → 1 分钟"
+              />
+              <FeatureRow
+                icon={<ShieldAlert className="w-3.5 h-3.5" />}
+                title="智能避险"
+                desc="自动跳过系统文件，杜绝误删"
+              />
+              <FeatureRow
+                icon={<ClipboardList className="w-3.5 h-3.5" />}
+                title="操作日志"
+                desc="哪天删了啥、释放多少 GB"
+              />
+              <FeatureRow
+                icon={<Rocket className="w-3.5 h-3.5" />}
+                title="一键全清"
+                desc="跨垃圾/大文件/残留/注册表"
+              />
+              <FeatureRow
+                icon={<Layers className="w-3.5 h-3.5" />}
+                title="全盘深度扫描"
+                desc="大目录分析不止 AppData"
+              />
+              <FeatureRow
+                icon={<TrendingUp className="w-3.5 h-3.5" />}
+                title="完整结果"
+                desc="大文件 / 残留路径全展开"
+              />
+            </div>
+          </div>
+
           {/* A1: 价格卡片网格 */}
           <div>
             <div className="flex items-center justify-between mb-2">

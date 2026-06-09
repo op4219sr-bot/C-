@@ -9,6 +9,7 @@ import { Package, Loader2, Trash2, FolderOpen, AlertTriangle, CheckCircle2, Smar
 import { ModuleCard } from '../ModuleCard';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { useDashboard } from '../../contexts/DashboardContext';
+import { useLicense } from '../../contexts/LicenseContext';
 import {
   scanUninstallLeftovers,
   deleteLeftoverFolders,
@@ -30,6 +31,7 @@ import { formatSize } from '../../utils/format';
 export function LeftoversModule() {
   const { modules, expandedModule, setExpandedModule, updateModuleState, triggerHealthRefresh, oneClickScanTrigger } = useDashboard();
   const moduleState = modules.leftovers;
+  const { isPremium, promptActivate } = useLicense();
 
   const lastScanTriggerRef = useRef(0);
 
@@ -636,7 +638,19 @@ export function LeftoversModule() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-[var(--text-muted)] truncate mt-0.5" title={leftover.path}>
+                    <p
+                      className={`text-xs text-[var(--text-muted)] truncate mt-0.5 ${
+                        !isPremium ? 'select-none cursor-pointer hover:text-[var(--brand-green)]' : ''
+                      }`}
+                      title={isPremium ? leftover.path : '免费版隐藏完整路径，点击开通会员查看'}
+                      onClick={(e) => {
+                        if (!isPremium) {
+                          e.stopPropagation();
+                          promptActivate({ hint: '开通会员后可查看残留路径完整详情' });
+                        }
+                      }}
+                      style={!isPremium ? { filter: 'blur(3px)' } : undefined}
+                    >
                       {leftover.path}
                     </p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-[var(--text-faint)]">
