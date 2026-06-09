@@ -1,0 +1,173 @@
+# ============================================================================
+# LightC 测试构建工作流（手动触发）
+# 跑在 windows-latest runner 上用 MSVC 工具链构建真正可在 Win 上运行的 .exe
+# 产物作为 workflow artifact 上传，不会创建 Release，不需要签名密钥
+# ============================================================================
+
+name: Test Build (Windows MSVC)
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base:
+        description: '客户端 API 基址（如 http://你的IP:8088；留空则用默认值，可在启动时通过 LIGHTC_API_BASE 环境变量覆盖）'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # 创建 Release 需要写权限
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Patch DEFAULT_API_BASE (if provided)
+        if: ${{ github.event.inputs.api_base != '' }}
+        shell: pwsh
+        run: |
+          $modPath = "src-tauri/src/license/mod.rs"
+          $base = "${{ github.event.inputs.api_base }}"
+          Write-Host "Patching DEFAULT_API_BASE = $base"
+          (Get-Content $modPath -Raw) -replace 'pub const DEFAULT_API_BASE: &str = ".*";', "pub const DEFAULT_API_BASE: &str = `"$base`";" | Set-Content $modPath
+          Get-Content $modPath | Select-String "DEFAULT_API_BASE"
+
+      - name: Build the app (Tauri NSIS + portable)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # 不创建 Release，仅构建本地产物
+          tagName: ''
+          releaseName: ''
+          releaseBody: ''
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: false
+          args: ''
+
+      - name: Locate NSIS installer
+        id: locate
+        shell: pwsh
+        run: |
+          $nsis = Get-ChildItem -Recurse -Path src-tauri/target -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($nsis) {
+            Write-Host "Found NSIS: $($nsis.FullName)"
+            echo "nsis_path=$($nsis.FullName)" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "NSIS installer not found"
+            exit 1
+          }
+
+      - name: Create portable package
+        id: portable
+        shell: pwsh
+        run: |
+          $ReleaseDir = "src-tauri\target\release"
+          $PortableDir = "portable_temp"
+          $ZipName = "LightC_portable_x64.zip"
+
+          New-Item -ItemType Directory -Path $PortableDir -Force | Out-Null
+
+          if (-not (Test-Path "$ReleaseDir\LightC.exe")) {
+            Write-Host "Error: LightC.exe not found at $ReleaseDir"
+            exit 1
+          }
+          Copy-Item "$ReleaseDir\LightC.exe" $PortableDir -Force
+
+          Get-ChildItem -Path $ReleaseDir -Filter "*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item $_.FullName $PortableDir -Force
+          }
+
+          if (Test-Path "$ReleaseDir\resources") {
+            Copy-Item "$ReleaseDir\resources" "$PortableDir\resources" -Recurse -Force
+          }
+
+          # 启动脚本
+          $bat = "@echo off`r`nchcp 65001 >nul`r`ntitle LightC ${{ github.run_number }} 测试版`r`n`r`nset `"LIGHTC_API_BASE=http://localhost:8088`"`r`nset `"RUST_LOG=info`"`r`n`r`necho.`r`necho  =============================================================`r`necho   LightC 测试版（GitHub Actions MSVC build #${{ github.run_number }}）`r`necho   API 地址：%LIGHTC_API_BASE%`r`necho  =============================================================`r`necho.`r`necho  提示：先把卡密后台跑起来 ^(cd server ^&^& npm start^)`r`necho.`r`n`r`nstart `"`" `"%~dp0LightC.exe`""
+          Set-Content -Path "$PortableDir\启动.bat" -Value $bat -Encoding UTF8 -NoNewline
+
+          # 使用说明
+          $readme = "LightC 卡密版 · Windows 测试包`r`n`r`n【运行】`r`n- 推荐：双击「启动.bat」（自动配置 API 为 localhost:8088）`r`n- 也可：直接双击 LightC.exe（使用默认 API 地址）`r`n`r`n【前提】`r`n- 卡密后台已在 8088 端口运行`r`n  cd server `&`& npm install `&`& npm start`r`n- 已安装 Edge WebView2 Runtime（Win11 预装，Win10 检查/安装）`r`n`r`n【激活流程】`r`n1. 后台生成日卡：http://localhost:8088/admin/ 或`r`n   node scripts/gen-cards.js --tier day --count 5`r`n2. 启动客户端，点任意「一键清理」按钮`r`n3. 粘贴卡密，激活`r`n4. 顶栏看到「日卡 · 剩 1 天」徽标即成功`r`n`r`n构建版本：MSVC release (GitHub Actions run #${{ github.run_number }})"
+          Set-Content -Path "$PortableDir\使用说明.txt" -Value $readme -Encoding UTF8 -NoNewline
+
+          Compress-Archive -Path "$PortableDir\*" -DestinationPath $ZipName -Force
+          Remove-Item $PortableDir -Recurse -Force
+
+          echo "zip_path=$ZipName" >> $env:GITHUB_OUTPUT
+
+      - name: Upload NSIS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: LightC-NSIS-installer
+          path: ${{ steps.locate.outputs.nsis_path }}
+          retention-days: 7
+
+      - name: Upload portable zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: LightC-portable
+          path: ${{ steps.portable.outputs.zip_path }}
+          retention-days: 7
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-build-${{ github.run_number }}
+          name: 测试构建 #${{ github.run_number }} (MSVC)
+          body: |
+            **未签名的测试构建**（GitHub Actions Windows MSVC）
+
+            ## 产物
+            - **LightC_*-setup.exe** —— NSIS 安装包，双击安装
+            - **LightC_portable_x64.zip** —— 绿色便携版，含「启动.bat」+「使用说明.txt」
+
+            ## 使用前提
+            1. 已部署卡密后台（参考 `LICENSE_SETUP.md` 和 server/README.md）
+            2. 已安装 Microsoft Edge WebView2 Runtime（Win11 已预装）
+
+            ## 默认 API 地址
+            ${{ github.event.inputs.api_base == '' && '`https://license.example.com`（占位，启动 .bat 会用环境变量覆盖到 `http://localhost:8088`）' || format('`{0}`（已编译嵌入）', github.event.inputs.api_base) }}
+
+            ## 构建信息
+            - Commit: `${{ github.sha }}`
+            - Branch: `${{ github.ref_name }}`
+            - Build #: ${{ github.run_number }}
+          prerelease: true
+          draft: false
+          files: |
+            ${{ steps.locate.outputs.nsis_path }}
+            ${{ steps.portable.outputs.zip_path }}
+
+      - name: Summary
+        shell: pwsh
+        run: |
+          echo "## 测试构建完成 ✅" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "### 下载产物" >> $env:GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release**：[test-build-${{ github.run_number }}](https://github.com/${{ github.repository }}/releases/tag/test-build-${{ github.run_number }})（永久访问）" >> $env:GITHUB_STEP_SUMMARY
+          echo "- **Workflow Artifacts**：右上角 Artifacts 标签（7 天内有效）" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "### 使用步骤" >> $env:GITHUB_STEP_SUMMARY
+          echo "1. 下载并解压" >> $env:GITHUB_STEP_SUMMARY
+          echo "2. 跑后端：``cd server && npm start``" >> $env:GITHUB_STEP_SUMMARY
+          echo "3. 双击「启动.bat」即可测试" >> $env:GITHUB_STEP_SUMMARY
