@@ -4,6 +4,7 @@
 // ============================================================================
 
 // 模块声明
+mod ai_cleaner;
 mod cleaner;
 mod commands;
 mod data_dir;
@@ -15,6 +16,7 @@ mod system_info;
 mod system_slim;
 
 // 导出命令模块
+use ai_cleaner::commands::{analyze_ai_evidence, collect_ai_evidence};
 use commands::*;
 use license::commands::{
     activate_license, deactivate_license, get_license_status, get_machine_fingerprint,
@@ -161,6 +163,9 @@ pub fn run() {
             activate_license,
             deactivate_license,
             verify_card_format,
+            // AI 智能清理顾问
+            collect_ai_evidence,
+            analyze_ai_evidence,
         ])
         .build(tauri::generate_context!())
         .expect("启动应用程序时发生错误");

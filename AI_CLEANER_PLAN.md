@@ -62,28 +62,32 @@ Rust src-tauri/src/ai_cleaner/
 ### Phase 0 — 准备（半天）
 - [x] P0-1 写本任务计划文档
 - [x] P0-2 创建 feat-ai-cleaner 分支（基于 dev）
-- [ ] P0-3 在 Cargo.toml 加依赖（已有 reqwest/serde_json，确认够用）
+- [x] P0-3 在 Cargo.toml 加依赖（已有 reqwest/serde_json/hmac/sha2，无需新增）
 
 ### Phase 1 — Rust 证据收集器（1.5 天）
-- [ ] P1-1 创建 ai_cleaner/mod.rs：定义 Evidence / EvidenceItem / EvidenceType 枚举
-- [ ] P1-2 evidence.rs：uninstall_residue 收集（复用 scanner::leftovers）
-- [ ] P1-3 evidence.rs：python_venv 收集（找 .venv/venv/Scripts/python.exe，读父目录 git 活动）
-- [ ] P1-4 evidence.rs：node_modules 收集（找 node_modules + 父目录 package.json + 最后修改）
-- [ ] P1-5 evidence.rs：ai_model_cache 收集（Ollama/HF/LMStudio/SD 路径 + 大小 + 最后访问）
-- [ ] P1-6 evidence.rs：ide_cache 收集（PyCharm/VSCode/Cursor 缓存目录）
-- [ ] P1-7 evidence.rs：generic_cache 收集（复用 hotspot 大缓存目录）
-- [ ] P1-8 文件元数据：last_access_days / last_modified_days / file_count / size_mb
-- [ ] P1-9 sanitize.rs：路径脱敏 + 反脱敏映射表（脱敏发 LLM，返回后用映射还原）
-- [ ] P1-10 commands.rs：collect_ai_evidence() Tauri 命令（免费，输出脱敏 JSON）
+- [x] P1-1 创建 ai_cleaner/mod.rs：定义 Evidence / EvidenceItem / EvidenceType 枚举
+- [x] P1-2 evidence.rs：uninstall_residue 收集（复用 scanner::leftovers）
+- [x] P1-3 evidence.rs：python_venv 收集（找 .venv/venv + pyvenv.cfg + 父目录活动）
+- [x] P1-4 evidence.rs：node_modules 收集（找 node_modules + 父目录 package.json + 最后修改）
+- [x] P1-5 evidence.rs：ai_model_cache 收集（Ollama/HF/LMStudio/torch/whisper/gpt4all/nvidia）
+- [x] P1-6 evidence.rs：ide_cache 收集（VSCode/Cursor/JetBrains 缓存目录）
+- [~] P1-7 evidence.rs：generic_cache 收集（暂用 uninstall+ai_cache 覆盖，后续可加 hotspot）
+- [x] P1-8 文件元数据：last_access_days / last_modified_days / file_count / size_mb
+- [x] P1-9 sanitize.rs：路径脱敏 + 反脱敏映射表（含单测）
+- [x] P1-10 commands.rs：collect_ai_evidence() Tauri 命令（免费，输出脱敏 JSON）
 
 ### Phase 2 — LLM 客户端 + Prompt（2 天）
-- [ ] P2-1 prompt.rs：system prompt（教 AI 判断规则：什么可删/保留/需用户决定）
-- [ ] P2-2 prompt.rs：few-shot 示例（3-5 个典型 case）
-- [ ] P2-3 llm_client.rs：GLM-4-Flash HTTP 调用（智谱 API 格式 + JWT 鉴权）
-- [ ] P2-4 llm_client.rs：自定义 endpoint 支持（OpenAI 兼容格式：用户填 key+url）
-- [ ] P2-5 llm_client.rs：结构化输出解析（AiDecision[] + 容错）
-- [ ] P2-6 commands.rs：analyze_with_ai(evidence) Tauri 命令（ensure_premium 守卫）
-- [ ] P2-7 settings：API Key / endpoint / 模式（后台代理 vs 自带 key）配置存储
+- [x] P2-1 prompt.rs：system prompt（教 AI 判断规则：什么可删/保留/需用户决定）
+- [x] P2-2 prompt.rs：few-shot 示例（典型 case）
+- [x] P2-3 llm_client.rs：GLM-4-Flash HTTP 调用（智谱 OpenAI 兼容格式 + Bearer）
+- [x] P2-4 llm_client.rs：自定义 endpoint 支持（BYOK：用户填 key+url+model）
+- [x] P2-5 llm_client.rs：结构化输出解析（AiReport + 剥 code fence 容错）
+- [x] P2-6 commands.rs：analyze_ai_evidence(evidence, config) Tauri 命令（ensure_premium 守卫）
+- [ ] P2-7 settings：前端 API Key / endpoint / 模式 配置存储（移到 Phase 4 前端做）
+
+注：lib.rs 已注册 collect_ai_evidence / analyze_ai_evidence 两个命令。
+license/mod.rs 已加 pub sign_app_body() + api_base() 供复用。
+cargo check (x86_64-pc-windows-gnu) 通过，仅项目原有 warning。
 
 ### Phase 3 — 后台 LLM 代理（1 天）
 - [ ] P3-1 server/src/routes/ai.js：POST /api/ai/analyze（HMAC 校验 + 会员校验）
@@ -122,12 +126,21 @@ Rust src-tauri/src/ai_cleaner/
 
 ## 4. 当前进度（每次更新！）
 
-**最后更新**：Phase 0 进行中
-**已完成**：P0-1（本文档）、P0-2（分支已建）
-**下一步**：P0-3 确认 Cargo 依赖 → 进 Phase 1
+**最后更新**：Phase 1 + Phase 2 已完成（Rust 后端核心全部就绪）
+**已完成**：Phase 0 全部 / Phase 1 全部（P1-7 部分）/ Phase 2 除 P2-7
+**下一步**：Phase 3 后台 LLM 代理（server/src/routes/ai.js）→ 然后 Phase 4 前端
 **阻塞项**：无
-**分支**：feat-ai-cleaner（基于 origin/dev）
-**注意**：每个 Phase 完成后 commit + push 到 dev，更新本区块。
+**分支**：feat-ai-cleaner（push 到 origin/dev）
+**已验证**：cargo check x86_64-pc-windows-gnu 通过
+
+**已创建文件**：
+- src-tauri/src/ai_cleaner/mod.rs（类型定义）
+- src-tauri/src/ai_cleaner/sanitize.rs（脱敏 + 单测）
+- src-tauri/src/ai_cleaner/evidence.rs（6 类证据收集）
+- src-tauri/src/ai_cleaner/prompt.rs（system prompt + few-shot）
+- src-tauri/src/ai_cleaner/llm_client.rs（GLM/BYOK/Proxy 三态）
+- src-tauri/src/ai_cleaner/commands.rs（collect + analyze 命令）
+- 修改 lib.rs（注册模块+命令）、license/mod.rs（加 sign_app_body/api_base）
 
 ---
 

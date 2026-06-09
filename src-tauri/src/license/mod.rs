@@ -226,3 +226,28 @@ pub(crate) fn aes_pepper_bytes() -> Vec<u8> {
 pub(crate) fn app_sign_secret_bytes() -> Vec<u8> {
     hex_decode_const(APP_SIGN_SECRET_HEX)
 }
+
+/// 用 APP_SIGN_SECRET 对请求体做 HMAC-SHA256 签名（hex）。
+/// 供 ai_cleaner 等模块调用后台 API 时复用同一套鉴权。
+pub fn sign_app_body(body: &[u8]) -> String {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    type HmacSha256 = Hmac<Sha256>;
+
+    let secret = app_sign_secret_bytes();
+    let mut mac = HmacSha256::new_from_slice(&secret).expect("HMAC key 长度无效");
+    mac.update(body);
+    let bytes = mac.finalize().into_bytes();
+    const HEX: &[u8] = b"0123456789abcdef";
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for &b in bytes.iter() {
+        s.push(HEX[(b >> 4) as usize] as char);
+        s.push(HEX[(b & 0xf) as usize] as char);
+    }
+    s
+}
+
+/// 暴露 API 基址（供 ai_cleaner proxy 模式复用）
+pub fn api_base() -> String {
+    std::env::var("LIGHTC_API_BASE").unwrap_or_else(|_| DEFAULT_API_BASE.to_string())
+}
