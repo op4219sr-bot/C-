@@ -127,9 +127,13 @@ function HotspotItem({ entry, rank, maxSize, isFullScan, onOpenFolder, onCleanup
 
   return (
     <div style={indentStyle}>
-      <div className={`group relative bg-[var(--bg-main)] rounded-xl p-3 hover:bg-[var(--bg-hover)] transition-colors ${
-        entry.is_protected ? 'border border-red-200 dark:border-red-800/30' : ''
-      } ${isChild ? 'bg-opacity-50' : ''}`}>
+      <div
+        className={`group relative bg-[var(--bg-main)] rounded-xl p-3 hover:bg-[var(--bg-hover)] transition-colors cursor-pointer ${
+          entry.is_protected ? 'border border-red-200 dark:border-red-800/30' : ''
+        } ${isChild ? 'bg-opacity-50' : ''}`}
+        onClick={() => onOpenFolder(entry.path)}
+        title="点击在资源管理器中打开此目录"
+      >
       {/* 占比背景条 */}
       <div 
         className={`absolute inset-0 rounded-xl opacity-50 transition-all ${
