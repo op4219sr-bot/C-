@@ -35,9 +35,10 @@ pub fn open_disk_cleanup() -> Result<(), String> {
 /// 在文件资源管理器中打开路径
 /// - 如果是目录，直接钻入该目录
 /// - 如果是文件，打开所在目录并选中该文件
+/// - 如果路径不存在，回退到打开父目录
 #[tauri::command]
 pub fn open_in_folder(path: String) -> Result<(), String> {
-    info!("打开路径: {}", path);
+    info!("[open_in_folder] 请求打开路径: {}", path);
 
     #[cfg(target_os = "windows")]
     {
@@ -46,21 +47,50 @@ pub fn open_in_folder(path: String) -> Result<(), String> {
         // Windows explorer 需要反斜杠路径，正斜杠会导致打开桌面而非目标目录
         let windows_path = path.replace('/', "\\");
         let p = Path::new(&windows_path);
-        if p.is_dir() {
+
+        if !p.exists() {
+            // 路径不存在：尝试打开第一个存在的父目录
+            log::warn!("[open_in_folder] 路径不存在: {}", windows_path);
+            let mut current: Option<&Path> = p.parent();
+            while let Some(parent) = current {
+                if parent.exists() {
+                    let parent_str = parent.to_string_lossy().to_string();
+                    log::info!("[open_in_folder] 回退到父目录: {}", parent_str);
+                    Command::new("explorer")
+                        .arg(&parent_str)
+                        .spawn()
+                        .map_err(|e| format!("无法打开父目录 {}: {}", parent_str, e))?;
+                    return Ok(());
+                }
+                current = parent.parent();
+            }
+            return Err(format!("路径不存在且无可用父目录: {}", windows_path));
+        }
+
+        let result = if p.is_dir() {
             // 目录：直接打开钻入
-            Command::new("explorer")
-                .arg(&windows_path)
-                .spawn()
-                .map_err(|e| format!("无法打开文件夹: {}", e))?;
+            log::info!("[open_in_folder] 打开目录: {}", windows_path);
+            Command::new("explorer").arg(&windows_path).spawn()
         } else {
             // 文件：打开所在目录并选中
+            log::info!("[open_in_folder] 选中文件: {}", windows_path);
             Command::new("explorer")
                 .arg("/select,")
                 .arg(&windows_path)
                 .spawn()
-                .map_err(|e| format!("无法打开文件夹: {}", e))?;
+        };
+
+        match result {
+            Ok(_) => {
+                log::info!("[open_in_folder] explorer 已启动");
+                Ok(())
+            }
+            Err(e) => {
+                let msg = format!("启动 explorer 失败: {} (路径: {})", e, windows_path);
+                log::error!("[open_in_folder] {}", msg);
+                Err(msg)
+            }
         }
-        Ok(())
     }
 
     #[cfg(not(target_os = "windows"))]

@@ -246,32 +246,32 @@ function HotspotItem({ entry, rank, maxSize, isFullScan, onOpenFolder, onCleanup
                   e.stopPropagation();
                   onCleanup(entry);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 text-orange-500 transition-all"
+                className="p-2 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/40 text-orange-500 transition-all"
                 title="清理缓存文件"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
-            
+
             {/* 搜索按钮 - 搜索该文件夹是否可以删除 全路径用.path，文件夹名称用.name */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onSearch(entry.path);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-blue-500 transition-all"
+              className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-500 transition-all"
               title="搜索该文件夹是否可以删除"
             >
               <Search className="w-4 h-4" />
             </button>
-            
+
             {/* 打开文件夹按钮 */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenFolder(entry.path);
               }}
-              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+              className="p-2 rounded-lg bg-[var(--brand-green)]/10 hover:bg-[var(--brand-green)]/20 text-[var(--brand-green)] transition-all"
               title="在文件资源管理器中打开"
             >
               <FolderOpen className="w-4 h-4" />
@@ -436,10 +436,17 @@ export function HotspotModule() {
   const handleOpenFolder = useCallback(async (path: string) => {
     try {
       await openInFolder(path);
+      // 不弹成功 toast，避免打扰；点击就有资源管理器窗口本身就是反馈
     } catch (err) {
+      const msg = typeof err === 'string' ? err : err instanceof Error ? err.message : String(err);
       console.error('打开文件夹失败:', err);
+      showToast({
+        type: 'error',
+        title: '无法打开文件夹',
+        description: msg || `路径：${path}`,
+      });
     }
-  }, []);
+  }, [showToast]);
 
   // 触发清理确认对话框
   const handleCleanupClick = useCallback((entry: HotspotEntry) => {
