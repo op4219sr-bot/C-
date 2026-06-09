@@ -22,6 +22,7 @@ import {
   HotspotModule,
   ContextMenuModule,
   ProgramDataModule,
+  AiCleanerModule,
   SplashScreen,
   Footer,
   AnchorNav,
@@ -129,6 +130,11 @@ function DashboardContent() {
           {/* ProgramData 分析模块 */}
           <div data-module-id="programdata">
             <ProgramDataModule />
+          </div>
+
+          {/* AI 智能清理顾问模块 */}
+          <div data-module-id="ai-cleaner">
+            <AiCleanerModule />
           </div>
 
           {/* 底部留白 */}

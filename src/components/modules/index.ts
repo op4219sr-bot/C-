@@ -11,3 +11,4 @@ export { RegistryModule } from './RegistryModule';
 export { HotspotModule } from './HotspotModule';
 export { ContextMenuModule } from './ContextMenuModule';
 export { ProgramDataModule } from './ProgramDataModule';
+export { AiCleanerModule } from './AiCleanerModule';

@@ -100,14 +100,18 @@ cargo check (x86_64-pc-windows-gnu) 通过，仅项目原有 warning。
 已测试 4 个分支：proxy_disabled / bad_signature / no_membership / 启动横幅。
 prompt 与 Rust 端 prompt.rs 保持一致。
 
-### Phase 4 — 前端 UI（1 天）
-- [ ] P4-1 api/commands.ts：collectAiEvidence / analyzeWithAi 封装 + 类型
-- [ ] P4-2 AiCleanerModule.tsx：主模块（扫描 → 证据总览 → AI 分析 → 报告 → 勾选执行）
-- [ ] P4-3 ai/EvidenceOverview.tsx：免费总览（X GB 可优化，按类型分组）
-- [ ] P4-4 ai/AiDecisionCard.tsx：AI 决策卡片（verdict 徽章 + reasoning + confidence + 勾选）
-- [ ] P4-5 ai/AiSettingsPanel.tsx：设置页 AI 配置（模式切换 + API Key 输入）
-- [ ] P4-6 接入 App.tsx 模块列表 + DashboardContext
-- [ ] P4-7 lib.rs 注册新命令
+### Phase 4 — 前端 UI（1 天）✅
+- [x] P4-1 api/commands.ts：collectAiEvidence / analyzeAiEvidence + 全部类型
+- [x] P4-2 AiCleanerModule.tsx：主模块（扫描 → 证据总览 → AI 分析 → 报告 → 勾选执行）
+- [x] P4-3 证据总览内嵌在主模块（X GB 可优化 + 按类型分组预览）
+- [x] P4-4 ai/AiDecisionCard.tsx：决策卡片（4 档徽章 + reasoning + 置信度条 + 勾选）
+- [x] P4-5 ai/AiSettingsPanel.tsx：AI 配置（proxy/byok 切换 + Key/endpoint/model）
+- [x] P4-6 接入 App.tsx 模块列表 + DashboardContext（modules.aiCleaner）
+- [x] P4-7 lib.rs 已注册命令（Phase 1 时完成）
+
+新增：hooks/useAiConfig.ts（localStorage 存 LLM 配置）
+删除分流：uninstall_residue → deleteLeftoverFolders，其它 → enhancedDeleteFiles
+前端 tsc 通过 + Rust check 通过。
 
 ### Phase 5 — 测试 + 调优（1 天）
 - [ ] P5-1 Rust cargo check（x86_64-pc-windows-gnu）通过
@@ -130,28 +134,28 @@ prompt 与 Rust 端 prompt.rs 保持一致。
 
 ## 4. 当前进度（每次更新！）
 
-**最后更新**：Phase 1+2+3 已完成（Rust 后端 + Node 后台代理全部就绪）
-**已完成**：Phase 0/1/2/3（P3-5 admin 用量页可选，暂留）
-**下一步**：Phase 4 前端 UI（AiCleanerModule + 证据展示 + AI 报告卡 + 设置）
-**阻塞项**：无
+**最后更新**：Phase 1+2+3+4 全部完成（端到端打通：扫描→AI→执行）
+**已完成**：Phase 0/1/2/3/4（仅 P3-5 admin 用量页 + P5 测试待做）
+**下一步**：Phase 5 — 触发 test-build 出 exe，真机测试 AI 流程 + prompt 调优
+**阻塞项**：需要真实 GLM API Key 才能端到端测 AI 分析（用户去 open.bigmodel.cn 申请）
 **分支**：feat-ai-cleaner（push 到 origin/dev）
-**已验证**：cargo check 通过；后台 4 分支测试通过
+**已验证**：cargo check + tsc 都通过；后台 4 分支测试通过
 
 **已创建文件**：
 - src-tauri/src/ai_cleaner/{mod,sanitize,evidence,prompt,llm_client,commands}.rs
-- server/src/routes/ai.js（AI 代理路由）
+- server/src/routes/ai.js
+- src/api/commands.ts（追加 AI 类型 + API）
+- src/hooks/useAiConfig.ts
+- src/components/ai/{AiDecisionCard,AiSettingsPanel}.tsx
+- src/components/modules/AiCleanerModule.tsx
 - 修改：lib.rs / license/mod.rs / server/{db,config,index}.js / .env.example
+        / DashboardContext.tsx / App.tsx / modules/index.ts
 
-**Phase 4 关键提示**：
-- 参考现有模块：src/components/modules/BigFilesModule.tsx（扫描+列表+会员守卫模式）
-- 会员守卫：useLicense() 的 isPremium / promptActivate
-- API 封装在 src/api/commands.ts，加 collectAiEvidence / analyzeAiEvidence
-- 命令：collect_ai_evidence（无参，返回 EvidencePackage）
-        analyze_ai_evidence（参数 evidence_pkg + config，返回 AiReportResolved）
-- LlmConfig 类型：{ mode: 'proxy'|'byok', api_key?, endpoint?, model? }
-- 删除复用：AiDecisionResolved.evidence_type 决定调 deleteLeftoversPermanent
-  （uninstall_residue）还是 enhancedDeleteFiles（其它）
-- 新模块需接入 App.tsx 模块列表 + DashboardContext 的 modules 状态
+**Phase 5 测试要点**：
+1. 配置真实 GLM Key：server/.env 填 GLM_API_KEY（open.bigmodel.cn 免费申请）
+2. 或客户端用 BYOK 模式：AI 设置 → 自带 Key → 填 GLM Key
+3. 触发 test-build → 装 exe → 激活会员 → 大目录有 AI 模型/残留才有证据
+4. prompt 调优：看 AI 判断是否合理，必要时改 prompt.rs + ai.js（两处保持一致）
 
 ---
 

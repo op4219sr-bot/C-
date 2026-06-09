@@ -1313,3 +1313,103 @@ export const TIER_LABEL: Record<LicenseTier, string> = {
 
 /** 后端返回 PREMIUM_REQUIRED 时识别用 */
 export const ERR_PREMIUM_REQUIRED = 'PREMIUM_REQUIRED';
+
+// ============================================================================
+// AI 智能清理顾问 API
+// ============================================================================
+
+/** 证据类别（与 Rust EvidenceType 对应） */
+export type AiEvidenceType =
+  | 'uninstall_residue'
+  | 'python_venv'
+  | 'node_modules'
+  | 'ai_model_cache'
+  | 'ide_cache'
+  | 'generic_cache';
+
+/** 单条证据（脱敏路径） */
+export interface AiEvidenceItem {
+  type: AiEvidenceType;
+  path: string;
+  size_mb: number;
+  file_count: number;
+  last_access_days: number;
+  last_modified_days: number;
+  subdir_names: string[];
+  meta: Record<string, string>;
+}
+
+/** 系统概览 */
+export interface AiSystemOverview {
+  os: string;
+  drive_c_free_gb: number;
+  drive_c_total_gb: number;
+}
+
+/** 完整证据包 */
+export interface AiEvidencePackage {
+  system: AiSystemOverview;
+  evidence: AiEvidenceItem[];
+}
+
+/** AI 判定 */
+export type AiVerdict = 'safe_to_delete' | 'likely_safe' | 'needs_user_decision' | 'keep';
+
+/** AI 决策（真实路径版） */
+export interface AiDecisionResolved {
+  real_path: string;
+  verdict: AiVerdict;
+  confidence: number;
+  reasoning: string;
+  size_mb: number;
+  category: string;
+  evidence_type: AiEvidenceType | null;
+}
+
+/** AI 报告（真实路径） */
+export interface AiReportResolved {
+  summary: string;
+  decisions: AiDecisionResolved[];
+}
+
+/** LLM 调用模式 */
+export type AiLlmMode = 'proxy' | 'byok';
+
+/** LLM 配置 */
+export interface AiLlmConfig {
+  mode: AiLlmMode;
+  api_key?: string;
+  endpoint?: string;
+  model?: string;
+}
+
+/** 收集证据包（免费） */
+export async function collectAiEvidence(): Promise<AiEvidencePackage> {
+  return invoke<AiEvidencePackage>('collect_ai_evidence');
+}
+
+/** 提交 AI 分析（会员） */
+export async function analyzeAiEvidence(
+  evidencePkg: AiEvidencePackage,
+  config: AiLlmConfig,
+): Promise<AiReportResolved> {
+  return invoke<AiReportResolved>('analyze_ai_evidence', { evidencePkg, config });
+}
+
+/** 证据类别中文名 */
+export const AI_EVIDENCE_TYPE_LABEL: Record<AiEvidenceType, string> = {
+  uninstall_residue: '卸载残留',
+  python_venv: 'Python 虚拟环境',
+  node_modules: 'Node 依赖',
+  ai_model_cache: 'AI 模型缓存',
+  ide_cache: 'IDE 缓存',
+  generic_cache: '通用缓存',
+};
+
+/** 判定中文名 + 颜色 */
+export const AI_VERDICT_META: Record<AiVerdict, { label: string; color: string; defaultChecked: boolean }> = {
+  safe_to_delete: { label: '可安全清理', color: 'green', defaultChecked: true },
+  likely_safe: { label: '大概率安全', color: 'blue', defaultChecked: false },
+  needs_user_decision: { label: '需你决定', color: 'orange', defaultChecked: false },
+  keep: { label: '建议保留', color: 'gray', defaultChecked: false },
+};

@@ -50,6 +50,8 @@ export interface ModulesState {
   contextMenu: ModuleState;
   /** ProgramData 分析模块 */
   programdata: ModuleState;
+  /** AI 智能清理顾问模块 */
+  aiCleaner: ModuleState;
 }
 
 /** 仪表盘 Context 值类型 */
@@ -111,6 +113,7 @@ const initialModulesState: ModulesState = {
   hotspot: { ...initialModuleState },
   contextMenu: { ...initialModuleState },
   programdata: { ...initialModuleState },
+  aiCleaner: { ...initialModuleState },
 };
 
 // ============================================================================
