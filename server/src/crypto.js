@@ -99,6 +99,8 @@ function randomBase27(len) {
 
 function crc32(buf) {
   // 简单 CRC32（与 Rust crc32fast IEEE 多项式一致）
+  // 关键：`>>> 0` 强制转无符号 32-bit，否则 JS 位运算结果是有符号 i32，
+  // 后续 BigInt.asUintN(64) 会把负数当成 2^64 - n 编码，与 Rust 的 u32 不一致。
   let crc = 0xffffffff;
   for (const b of buf) {
     crc ^= b;
@@ -106,7 +108,7 @@ function crc32(buf) {
       crc = crc & 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
     }
   }
-  return crc ^ 0xffffffff;
+  return (crc ^ 0xffffffff) >>> 0;
 }
 
 /**
