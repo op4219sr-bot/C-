@@ -46,10 +46,24 @@ jobs:
         shell: pwsh
         run: |
           $modPath = "src-tauri/src/license/mod.rs"
+          if (-not (Test-Path $modPath)) {
+            Write-Host "skip: $modPath not present (license module not on this branch)"
+            return
+          }
           $base = "${{ github.event.inputs.api_base }}"
           Write-Host "Patching DEFAULT_API_BASE = $base"
           (Get-Content $modPath -Raw) -replace 'pub const DEFAULT_API_BASE: &str = ".*";', "pub const DEFAULT_API_BASE: &str = `"$base`";" | Set-Content $modPath
           Get-Content $modPath | Select-String "DEFAULT_API_BASE"
+
+      # 测试构建不需要 updater，关掉它就能跳过签名要求（避免 TAURI_SIGNING_PRIVATE_KEY 报错）
+      - name: Disable updater artifacts
+        shell: pwsh
+        run: |
+          $configPath = "src-tauri/tauri.conf.json"
+          $config = Get-Content $configPath -Raw | ConvertFrom-Json
+          $config.bundle.createUpdaterArtifacts = $false
+          $config | ConvertTo-Json -Depth 32 | Set-Content $configPath -Encoding UTF8
+          Write-Host "Patched createUpdaterArtifacts = false"
 
       - name: Build the app (Tauri NSIS + portable)
         uses: tauri-apps/tauri-action@v0
