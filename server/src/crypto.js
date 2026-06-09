@@ -58,7 +58,7 @@ export function verifyAppSign(rawBody, signHex) {
 // 卡密生成
 // ============================================================================
 
-const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 27 chars, 去除 0/O/1/I/L
+const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31 chars, 去除 0/O/1/I/L 易混淆字符
 const TIER_CODE = {
   day: 'DA',
   week: 'WK',
@@ -77,10 +77,13 @@ export const TIER_DAYS = {
 };
 
 /** 将 32-bit 整数编码成定长 base27（与 Rust 端一致） */
+// 注意：函数名保留 encodeBase27 是历史命名，实际 base = ALPHABET.length = 31
+// 必须使用 ALPHABET.length 与 Rust 端 (ALPHABET.len() = 31) 保持一致，
+// 否则两端编码 checksum 时基数不同，校验永远失败。
 function encodeBase27(value, len) {
   const buf = Buffer.alloc(len);
   let v = BigInt.asUintN(64, BigInt(value));
-  const base = 27n;
+  const base = BigInt(ALPHABET.length); // 31
   for (let i = len - 1; i >= 0; i--) {
     buf[i] = ALPHABET.charCodeAt(Number(v % base));
     v = v / base;
@@ -127,7 +130,9 @@ export function generateCard(tier, seqNum) {
   const random = randomBase27(8);
   const payload = tierCode + seq + random; // 16
   const crc = crc32(Buffer.from('LC' + payload));
-  const checksum = encodeBase27(crc & 0xffffffff, 4);
+  // 不能用 crc & 0xffffffff！JS 位运算返回 signed i32，
+  // 当 crc 高位为 1（值 >= 2^31）时会变负数，BigInt.asUintN(64) 编码错误
+  const checksum = encodeBase27(crc >>> 0, 4);
   return 'LC' + payload + checksum; // 22, 无横线
 }
 
@@ -148,7 +153,7 @@ export function validateCardFormat(card) {
   const payload = body.slice(0, 16);
   const checksum = body.slice(16);
   const crc = crc32(Buffer.from('LC' + payload));
-  const expected = encodeBase27(crc & 0xffffffff, 4);
+  const expected = encodeBase27(crc >>> 0, 4);
   return expected === checksum;
 }
 
